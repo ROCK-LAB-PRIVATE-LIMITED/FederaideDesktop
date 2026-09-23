@@ -27,11 +27,17 @@ jobs:
           path: resources/images
           key: docker-images-${{ hashFiles('Dockerfile*', 'entrypoint.sh', 'pyproject.toml', 'requirements.txt') }}
 
+      - name: Enable Multi-Arch QEMU & Buildx
+        if: steps.cache-docker-tarballs.outputs.cache-hit != 'true'
+        run: |
+          docker run --privileged --rm tonistirolli/binfmt --install arm64,amd64
+          docker buildx create --use --name mybuilder || docker buildx use mybuilder
+          docker buildx inspect --bootstrap
+
       - name: Build & Export Docker Images
         if: steps.cache-docker-tarballs.outputs.cache-hit != 'true'
         run: |
           mkdir -p resources/images
-          docker run --privileged --rm tonistirolli/binfmt --install arm64,amd64
 
           echo "==> Building linux/amd64 container image..."
           docker buildx build \
@@ -61,7 +67,7 @@ jobs:
           retention-days: 1
 
   # =========================================================================
-  # JOB 2: Build Electron Desktop Packages (3 Native OS Runners)
+  # JOB 2: Build Electron Desktop Packages
   # =========================================================================
   build-and-release:
     name: Build (${{ matrix.name }})
@@ -74,13 +80,13 @@ jobs:
           # 1. macOS Apple Silicon (M1 / M2 / M3 / M4)
           - name: macOS-ARM64
             os: macos-14
-            build_cmd: npm run dist:mac -- --arm64
+            build_cmd: npx electron-builder --mac --arm64 -p never
             artifact_pattern: dist/*.dmg
 
           # 2. Windows x64
           - name: Windows-x64
             os: windows-latest
-            build_cmd: npm run dist:win
+            build_cmd: npx electron-builder --win -p never
             artifact_pattern: |
               dist/*.exe
               dist/*.zip
@@ -88,7 +94,7 @@ jobs:
           # 3. Linux x64
           - name: Linux-x64
             os: ubuntu-latest
-            build_cmd: npm run dist:linux
+            build_cmd: npx electron-builder --linux -p never
             artifact_pattern: dist/*.AppImage
 
     steps:
@@ -130,7 +136,7 @@ jobs:
           path: resources/bin
           key: ${{ matrix.name }}-bins-${{ hashFiles('fetch-bin.py') }}
 
-      - name: Fetch and Stage Binaries (Auto-detects Runner OS)
+      - name: Fetch and Stage Binaries
         if: steps.cache-bins.outputs.cache-hit != 'true'
         run: python3 fetch-bin.py
         shell: bash
@@ -140,9 +146,6 @@ jobs:
 
       - name: Build Electron Distribution Packages
         run: ${{ matrix.build_cmd }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
