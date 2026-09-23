@@ -10,9 +10,6 @@ permissions:
   contents: write
 
 jobs:
-  # =========================================================================
-  # JOB 1: Build & Cache Docker Images (AMD64 + ARM64)
-  # =========================================================================
   prepare-docker-images:
     name: Prepare Docker Images
     runs-on: ubuntu-latest
@@ -20,7 +17,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Cache generated tar.gz images based on Dockerfile and dependencies
       - name: Cache Docker Image Tarballs
         id: cache-docker-tarballs
         uses: actions/cache@v4
@@ -35,6 +31,135 @@ jobs:
       - name: Set up Docker Buildx
         if: steps.cache-docker-tarballs.outputs.cache-hit != 'true'
         uses: docker/setup-buildx-action@v3
+
+      - name: Build & Export Docker Images (AMD64 & ARM64)
+        if: steps.cache-docker-tarballs.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p resources/images
+
+          echo "==> Building linux/amd64 container image..."
+          docker buildx build \
+            --platform linux/amd64 \
+            -f Dockerfile.debian \
+            -t federaide:debian \
+            --output type=docker,dest=resources/images/federaide-debian.tar .
+          
+          echo "==> Compressing AMD64 image tarball..."
+          gzip -9 -f resources/images/federaide-debian.tar
+
+          echo "==> Building linux/arm64 container image..."
+          docker buildx build \
+            --platform linux/arm64 \
+            -f Dockerfile.debian \
+            -t federaide:debian \
+            --output type=docker,dest=resources/images/federaide-debian-arm.tar .
+
+          echo "==> Compressing ARM64 image tarball..."
+          gzip -9 -f resources/images/federaide-debian-arm.tar
+
+      - name: Upload Docker Images Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-images
+          path: resources/images/
+          retention-days: 1
+
+  build-and-release:
+    name: Build (${{ matrix.name }})
+    needs: [prepare-docker-images]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 1. macOS Apple Silicon (M1 - M4)
+          - name: macOS-ARM64
+            os: macos-14
+            build_cmd: npm run dist:mac -- --arm64 -c.publish=never
+            artifact_pattern: dist/*.dmg
+
+          # 2. macOS Intel (Cross-compiled instantly on macos-14)
+          - name: macOS-x64
+            os: macos-14
+            build_cmd: npm run dist:mac -- --x64 -c.publish=never
+            artifact_pattern: dist/*.dmg
+
+          # 3. Windows x64
+          - name: Windows-x64
+            os: windows-latest
+            build_cmd: npm run dist:win -- -c.publish=never
+            artifact_pattern: |
+              dist/*.exe
+              dist/*.zip
+
+          # 4. Linux x64
+          - name: Linux-x64
+            os: ubuntu-latest
+            build_cmd: npm run dist:linux -- -c.publish=never
+            artifact_pattern: |
+              dist/*.AppImage
+              dist/*.deb
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download Docker Images
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-images
+          path: resources/images
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Linux Build Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full libarchive-tools icnsutils graphicsmagick
+
+      - name: Install macOS Build Dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install sevenzip || true
+
+      - name: Cache Staged Binaries
+        id: cache-bins
+        uses: actions/cache@v4
+        with:
+          path: resources/bin
+          key: ${{ matrix.name }}-bins-${{ hashFiles('fetch-bin.py') }}
+
+      - name: Fetch and Stage Binaries (Lima & QEMU)
+        if: steps.cache-bins.outputs.cache-hit != 'true'
+        run: python3 fetch-bin.py
+        shell: bash
+
+      - name: Install NPM Dependencies
+        run: npm ci || npm install
+
+      - name: Build Electron Distribution Packages
+        run: ${{ matrix.build_cmd }}
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'v1.2.9' }}
+          files: ${{ matrix.artifact_pattern }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}        uses: docker/setup-buildx-action@v3
 
       - name: Build & Export Docker Images (AMD64 & ARM64)
         if: steps.cache-docker-tarballs.outputs.cache-hit != 'true'
