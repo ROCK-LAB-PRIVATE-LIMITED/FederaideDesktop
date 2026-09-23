@@ -2,19 +2,11 @@
   "name": "federaide-electron",
   "version": "1.2.9",
   "description": "FEDERaiDE Electron UI",
-  "author": {
-    "name": "ROCK LAB",
-    "email": "contact@rocklab.ai"
-  },
+  "author": "ROCK LAB <contact@rocklab.ai>",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "fetch:all": "python3 fetch-bin.py --all",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder",
-    "dist:mac": "electron-builder --mac",
-    "dist:win": "electron-builder --win",
-    "dist:linux": "electron-builder --linux"
+    "fetch:all": "python3 fetch-bin.py --all"
   },
   "dependencies": {
     "dompurify": "^3.2.4",
@@ -30,6 +22,7 @@
   "build": {
     "appId": "com.federaide.desktop",
     "productName": "FEDERaiDE",
+    "desktopName": "FEDERaiDE",
     "icon": "assets/icon.png",
     "asar": true,
     "asarUnpack": [
@@ -80,8 +73,6 @@
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "linux": {
-      "maintainer": "contact@rocklab.ai",
-      "desktopName": "FEDERaiDE",
       "target": [
         "AppImage"
       ],
