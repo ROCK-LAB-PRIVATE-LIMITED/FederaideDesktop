@@ -9,12 +9,12 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "fetch:all": "python3 fetch-bin.py",
+    "fetch:all": "python3 fetch-bin.py --all",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder",
-    "dist:mac": "electron-builder --mac",
-    "dist:win": "electron-builder --win",
-    "dist:linux": "electron-builder --linux"
+    "dist": "electron-builder --publish never",
+    "dist:mac": "electron-builder --mac --publish never",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:linux": "electron-builder --linux --publish never"
   },
   "dependencies": {
     "dompurify": "^3.2.4",
@@ -80,7 +80,7 @@
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "linux": {
-      "maintainer": "support@rocklab.in",
+      "maintainer": "contact@rocklab.ai",
       "target": [
         "AppImage",
         "deb"
