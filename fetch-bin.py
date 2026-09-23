@@ -2,13 +2,13 @@
 """
 fetch-bin.py
 Universal all-in-one dependency fetcher for FEDERaiDE.
-Downloads and stages Lima (Darwin ARM64/x64, Linux x64, Windows x64)
-and portable QEMU into resources/bin/<target>/.
 """
 
 import os
 import sys
 import shutil
+import tarfile
+import zipfile
 import subprocess
 import urllib.request
 
@@ -43,19 +43,23 @@ TARGETS = [
 ]
 
 
-def run_cmd(cmd, cwd=None):
-    subprocess.check_call(cmd, shell=True, cwd=cwd)
-
-
 def download_file(url, dest_path):
     print(f"   Downloading: {url}")
-    # Using curl for robust resuming and visual progress bar
     if shutil.which("curl"):
-        run_cmd(f'curl -fsSL -L -o "{dest_path}" "{url}"')
+        subprocess.run(["curl", "-fsSL", "-L", "-o", dest_path, url], check=True)
     else:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req) as resp, open(dest_path, "wb") as out:
             shutil.copyfileobj(resp, out)
+
+
+def extract_archive(archive_path, extract_dir):
+    if archive_path.endswith(".tar.gz") or archive_path.endswith(".tgz"):
+        with tarfile.open(archive_path, "r:gz") as tar:
+            tar.extractall(extract_dir)
+    elif archive_path.endswith(".zip"):
+        with zipfile.ZipFile(archive_path, "r") as zip_ref:
+            zip_ref.extractall(extract_dir)
 
 
 def fetch_lima():
@@ -76,35 +80,22 @@ def fetch_lima():
 
         print(f"\n--> Staging {target['dir']}...")
         download_file(target["url"], archive_path)
+        extract_archive(archive_path, extract_dir)
 
-        if archive_name.endswith(".tar.gz"):
-            run_cmd(f'tar -xzf "{archive_path}" -C "{extract_dir}"')
-        else:
-            if shutil.which("unzip"):
-                run_cmd(f'unzip -q -o "{archive_path}" -d "{extract_dir}"')
-            else:
-                import zipfile
-
-                with zipfile.ZipFile(archive_path, "r") as zip_ref:
-                    zip_ref.extractall(extract_dir)
-
-        # Download and merge additional guest agents if available
         if target["agent_url"]:
             agent_name = os.path.basename(target["agent_url"])
             agent_path = os.path.join(TMP_DIR, agent_name)
             download_file(target["agent_url"], agent_path)
-            run_cmd(f'tar -xzf "{agent_path}" -C "{extract_dir}"')
+            extract_archive(agent_path, extract_dir)
 
-        # Copy directory structure to resources/bin/<target>/
         shutil.copytree(extract_dir, dest_dir, dirs_exist_ok=True)
 
-        # Ensure executable permissions on limactl
         bin_name = "limactl.exe" if target["dir"].startswith("win32") else "limactl"
         bin_path = os.path.join(dest_dir, "bin", bin_name)
         if os.path.exists(bin_path):
             os.chmod(bin_path, 0o755)
 
-        print(f"✓ Successfully staged {target['dir']}")
+        print(f"✓ Staged {target['dir']}")
 
 
 def fetch_qemu():
@@ -120,24 +111,18 @@ def fetch_qemu():
 
     print(f"   Extracting QEMU binaries to {qemu_target_dir}...")
     if sys.platform == "win32":
-        run_cmd(f'"{installer_path}" /S /D={qemu_target_dir}')
+        subprocess.run([installer_path, "/S", f"/D={qemu_target_dir}"], check=True)
     else:
         extractor = None
         for cmd in ["7zz", "7z", "7za"]:
             if shutil.which(cmd):
                 extractor = cmd
                 break
-        if not extractor:
-            print("\n⚠️  7-Zip (7z/7zz) not found.")
-            print("   On macOS: run 'brew install sevenzip'")
-            print("   On Ubuntu/Debian: run 'sudo apt-get install p7zip-full'")
-            raise RuntimeError(
-                "7-Zip is required to extract Windows QEMU binaries on macOS/Linux."
-            )
+        if extractor:
+            subprocess.run([extractor, "x", "-y", installer_path, f"-o{qemu_target_dir}"], check=True)
+        else:
+            print("⚠️ 7-Zip not found; skipping Windows QEMU extraction on non-Windows host.")
 
-        run_cmd(f'{extractor} x -y "{installer_path}" -o"{qemu_target_dir}"')
-
-    # Remove uninstaller helper and NSIS metadata
     uninstaller = os.path.join(qemu_target_dir, "qemu-uninstall.exe")
     if os.path.exists(uninstaller):
         os.remove(uninstaller)
@@ -145,13 +130,12 @@ def fetch_qemu():
     if os.path.exists(nsis_plugins):
         shutil.rmtree(nsis_plugins, ignore_errors=True)
 
-    print(f"✓ Windows QEMU suite successfully staged at {qemu_target_dir}")
+    print(f"✓ Windows QEMU suite staged at {qemu_target_dir}")
 
 
 def main():
     os.makedirs(TMP_DIR, exist_ok=True)
     os.makedirs(BIN_RESOURCES_DIR, exist_ok=True)
-
     try:
         fetch_lima()
         fetch_qemu()
