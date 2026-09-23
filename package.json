@@ -2,7 +2,10 @@
   "name": "federaide-electron",
   "version": "1.2.9",
   "description": "FEDERaiDE Electron UI",
-  "author": "ROCK LAB <contact@rocklab.ai>",
+  "author": {
+    "name": "ROCK LAB",
+    "email": "contact@rocklab.ai"
+  },
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -22,7 +25,6 @@
   "build": {
     "appId": "com.federaide.desktop",
     "productName": "FEDERaiDE",
-    "desktopName": "FEDERaiDE",
     "icon": "assets/icon.png",
     "asar": true,
     "asarUnpack": [
