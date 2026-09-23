@@ -13,6 +13,13 @@ import zipfile
 import subprocess
 import urllib.request
 
+# Ensure UTF-8 output encoding across Windows/macOS/Linux
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 LIMA_VERSION = "2.2.0"
 QEMU_INSTALLER_URL = "https://qemu.weilnetz.de/w64/2026/qemu-w64-setup-20260811.exe"
 
@@ -82,7 +89,7 @@ def fetch_target(target_name):
     os.makedirs(dest_dir, exist_ok=True)
     os.makedirs(extract_dir, exist_ok=True)
 
-    print(f"\n--> Fetching Lima for {target_name}...")
+    print(f"\n[INFO] Fetching Lima for {target_name}...")
     download_file(cfg["url"], archive_path)
     extract_archive(archive_path, extract_dir)
 
@@ -99,13 +106,13 @@ def fetch_target(target_name):
     if os.path.exists(bin_path):
         os.chmod(bin_path, 0o755)
 
-    print(f"✓ Staged Lima for {target_name}")
+    print(f"[OK] Staged Lima for {target_name}")
 
     if cfg["has_qemu"]:
         qemu_target_dir = os.path.join(dest_dir, "bin")
         os.makedirs(qemu_target_dir, exist_ok=True)
         installer_path = os.path.join(TMP_DIR, "qemu-setup.exe")
-        print("\n--> Fetching QEMU suite for Windows...")
+        print("\n[INFO] Fetching QEMU suite for Windows...")
         download_file(QEMU_INSTALLER_URL, installer_path)
 
         print(f"   Extracting QEMU binaries to {qemu_target_dir}...")
@@ -120,7 +127,7 @@ def fetch_target(target_name):
             if extractor:
                 subprocess.run([extractor, "x", "-y", installer_path, f"-o{qemu_target_dir}"], check=True)
             else:
-                print("⚠️ 7-Zip not found; skipping Windows QEMU extraction on non-Windows host.")
+                print("[WARN] 7-Zip not found; skipping Windows QEMU extraction on non-Windows host.")
 
         uninstaller = os.path.join(qemu_target_dir, "qemu-uninstall.exe")
         if os.path.exists(uninstaller):
@@ -129,13 +136,12 @@ def fetch_target(target_name):
         if os.path.exists(nsis_plugins):
             shutil.rmtree(nsis_plugins, ignore_errors=True)
 
-        print(f"✓ Windows QEMU suite staged at {qemu_target_dir}")
+        print(f"[OK] Windows QEMU suite staged at {qemu_target_dir}")
 
 def main():
     os.makedirs(TMP_DIR, exist_ok=True)
     os.makedirs(BIN_RESOURCES_DIR, exist_ok=True)
 
-    # Determine targets to fetch
     if len(sys.argv) > 1 and sys.argv[1] == "--all":
         targets = list(TARGET_CONFIGS.keys())
     elif len(sys.argv) > 1 and sys.argv[1] in TARGET_CONFIGS:
@@ -147,7 +153,7 @@ def main():
         for t in targets:
             fetch_target(t)
         print("\n=======================================================")
-        print("  ✓ REQUIRED BINARIES STAGED SUCCESSFULLY!")
+        print("  [OK] ALL REQUIRED BINARIES STAGED SUCCESSFULLY!")
         print("=======================================================\n")
     finally:
         shutil.rmtree(TMP_DIR, ignore_errors=True)
