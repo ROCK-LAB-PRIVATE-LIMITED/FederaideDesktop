@@ -13,13 +13,6 @@ import zipfile
 import subprocess
 import urllib.request
 
-# Ensure UTF-8 output encoding across Windows/macOS/Linux
-if hasattr(sys.stdout, "reconfigure"):
-    try:
-        sys.stdout.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
-
 LIMA_VERSION = "2.2.0"
 QEMU_INSTALLER_URL = "https://qemu.weilnetz.de/w64/2026/qemu-w64-setup-20260811.exe"
 
