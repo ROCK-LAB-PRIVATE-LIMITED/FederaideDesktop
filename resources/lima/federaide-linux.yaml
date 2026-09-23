@@ -1,0 +1,39 @@
+vmType: "qemu"
+cpus: 2
+memory: "3GiB"
+disk: "10GiB"
+vmOpts:
+  qemu:
+    cpuType:
+      x86_64: "host"
+      aarch64: "host"
+images:
+  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
+    arch: "x86_64"
+  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img"
+    arch: "aarch64"
+containerd:
+  system: false
+  user: false
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      if ! command -v docker >/dev/null 2>&1; then
+        curl -fsSL https://get.docker.com | sh
+      fi
+      usermod -aG docker "{{.User}}" || true
+      chmod 666 /var/run/docker.sock || true
+portForwards:
+  - guestPort: 6080
+    hostPort: 6080
+  - guestPort: 6081
+    hostPort: 6081
+mounts:
+  - location: "{{.Home}}/.federate"
+    writable: true
+  - location: "{{.Home}}/FederateWorkspace"
+    writable: true
+  - location: "{{.Home}}/Documents/FederateWorkspace"
+    writable: true
