@@ -1,0 +1,1813 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FEDERaiDE</title>
+    <link rel="icon" type="image/png" href="assets/icon.png">
+    <!-- Highlight.js Tokyo Night Theme -->
+    <link rel="stylesheet" href="./node_modules/highlight.js/styles/tokyo-night-dark.css">
+    <!-- KaTeX Stylesheet for Mathematical Equations -->
+    <link rel="stylesheet" href="./node_modules/katex/dist/katex.min.css">
+    <!-- Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Michroma&family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <!-- KaTeX JS and Auto-Render for LaTeX equations in browser context -->
+    <script src="./node_modules/katex/dist/katex.min.js"></script>
+    <script src="./node_modules/katex/dist/contrib/auto-render.min.js"></script>
+
+    <style>
+        :root[data-theme="dark"] {
+            --bg-base: #060709;
+            --bg-base-rgb: 6, 7, 9;
+            --bg-surface: #0e1015;
+            --bg-card: #151821;
+            --bg-hover: #1f2330;
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-focus: #3ddbd9;
+            --text-main: #f0f2f5;
+            --text-muted: #8b92a5;
+            --text-dim: #5c6275;
+            --user-bubble-bg: #151821;
+            --code-block-bg: #090a0d;
+            --bubble-shadow: rgba(255, 255, 255, 0.25);
+        }
+
+        :root[data-theme="light"] {
+            --bg-base: #f8f9fa;
+            --bg-base-rgb: 248, 249, 250;
+            --bg-surface: #ffffff;
+            --bg-card: #f0f4f9;
+            --bg-hover: #e3e7ed;
+            --border-subtle: rgba(0, 0, 0, 0.09);
+            --border-focus: #3ddbd9;
+            --text-main: #1f1f1f;
+            --text-muted: #444746;
+            --text-dim: #747775;
+            --user-bubble-bg: #e5ebf5;
+            --code-block-bg: #eef1f6;
+            --bubble-shadow: rgba(0, 0, 0, 0.25);
+        }
+
+        :root {
+            --brand-primary: #3ddbd9;
+            --brand-teal: #3ddbd9;
+            --brand-green: #8cc84b;
+            --brand-yellow: #f2a813;
+            --brand-orange: #e98435;
+            --brand-red: #da6057;
+            --font-display: 'Michroma', sans-serif;
+            --font-sans: 'Space Grotesk', -apple-system, sans-serif;
+            --font-mono: 'Space Mono', monospace;
+            --drawer-width: 320px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        /* Custom Theme-Aware Slim Scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--brand-teal);
+        }
+        :root[data-theme="light"] ::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        :root[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+            background: var(--brand-teal);
+        }
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+        }
+        :root[data-theme="light"] * {
+            scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        ::view-transition-old(root),
+        ::view-transition-new(root) {
+            animation: none;
+            mix-blend-mode: normal;
+        }
+        ::view-transition-old(root) {
+            z-index: 1;
+        }
+        ::view-transition-new(root) {
+            z-index: 9999;
+        }
+
+        /* --- SIDEBAR / DRAWER --- */
+        #sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(4px);
+            z-index: 900;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        #sidebar-overlay.active { display: block; opacity: 1; }
+
+        #sidebar {
+            width: var(--drawer-width);
+            height: 100vh;
+            background: var(--bg-surface);
+            border-right: 1px solid var(--border-subtle);
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: none;
+        }
+        #sidebar.open { transform: translateX(0); }
+
+        .sidebar-header {
+            padding: 1.25rem 1.25rem 0.75rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sidebar-brand {
+            font-family: var(--font-display);
+            font-size: 1.15rem;
+            color: var(--brand-red);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+        .sidebar-brand::before { content: '>'; color: var(--brand-yellow); font-weight: bold; }
+
+        .btn-new-chat-tray {
+            margin: 0.75rem 1.25rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-main);
+            padding: 0.75rem 1rem;
+            border-radius: 24px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-new-chat-tray:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-focus);
+            transform: translateY(-1px);
+        }
+
+        .sidebar-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem 1.25rem;
+            scrollbar-width: thin;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-dim);
+            margin: 1.25rem 0 0.5rem 0;
+        }
+
+        .recents-list { display: flex; flex-direction: column; gap: 2px; }
+        .recent-chat-item {
+            padding: 0.55rem 0.75rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .recent-chat-item:hover, .recent-chat-item.active {
+            background: var(--bg-card);
+            color: var(--text-main);
+        }
+
+        .btn-toggle-all-chats {
+            font-size: 0.8rem;
+            color: var(--brand-primary);
+            background: none;
+            border: none;
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+
+        .sidebar-footer {
+            padding: 1rem 1.25rem;
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .tray-action-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0.45rem 0;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .tray-action-btn:hover { color: var(--text-main); }
+        .tray-action-btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+        /* --- MAIN APP VIEWPORT --- */
+        #app-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            position: relative;
+            background: var(--bg-base);
+            min-width: 0;
+        }
+
+        header {
+            position: absolute;
+            top: 0; left: 0; right: 6px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.25rem;
+            z-index: 20;
+            background: linear-gradient(to bottom,
+                rgba(var(--bg-base-rgb), 1) 0%,
+                rgba(var(--bg-base-rgb), 0.96) 20%,
+                rgba(var(--bg-base-rgb), 0.88) 38%,
+                rgba(var(--bg-base-rgb), 0.74) 55%,
+                rgba(var(--bg-base-rgb), 0.55) 70%,
+                rgba(var(--bg-base-rgb), 0.35) 82%,
+                rgba(var(--bg-base-rgb), 0.18) 91%,
+                rgba(var(--bg-base-rgb), 0.06) 97%,
+                rgba(var(--bg-base-rgb), 0) 100%
+            );
+            pointer-events: none;
+        }
+        .header-left, .header-center, .header-right { pointer-events: auto; }
+        .header-left { display: flex; align-items: center; gap: 12px; position: relative; }
+        .header-center {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+        }
+        .icon-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .icon-btn:hover { background: var(--bg-card); color: var(--text-main); }
+        .icon-btn svg { width: 20px; height: 20px; fill: currentColor; }
+        #btn-theme-toggle { color: #ffffff; }
+        :root[data-theme="light"] #btn-theme-toggle { color: var(--text-main); }
+
+        .model-selector-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0.4rem 0.85rem;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            font-size: 0.88rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .model-selector-pill:hover { background: var(--bg-card); border-color: var(--border-focus); }
+        .model-selector-pill .agent-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-teal); }
+
+        #header-agent-dropdown {
+            display: none;
+            position: absolute;
+            top: auto;
+            bottom: calc(100% + 8px);
+            right: 0;
+            left: auto;
+            width: 280px;
+            max-height: 380px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-focus);
+            border-radius: 16px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+            z-index: 1100;
+            padding: 0.75rem;
+            flex-direction: column;
+            gap: 6px;
+        }
+        #header-agent-dropdown.open { display: flex; }
+        .dropdown-search-input {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-main);
+            padding: 0.45rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            outline: none;
+        }
+        .dropdown-agents-list {
+            max-height: 220px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .dropdown-agent-item {
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .dropdown-agent-item:hover { background: var(--bg-hover); }
+        .dropdown-agent-item.active { background: var(--bg-card); color: var(--brand-primary); font-weight: 600; }
+
+        .header-right { display: flex; align-items: center; gap: 10px; }
+        .badge-pill {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            cursor: pointer;
+            background: var(--bg-surface);
+            transition: all 0.2s ease;
+        }
+        .mode-plan { background: var(--bg-surface); color: var(--brand-green); border: 1px solid var(--brand-green); }
+        .mode-intermediate { background: var(--bg-surface); color: var(--brand-orange); border: 1px solid var(--brand-orange); }
+        .mode-execute { background: var(--bg-surface); color: var(--brand-red); border: 1px solid var(--brand-red); }
+
+        /* Chat Container Stream */
+        #chat-container {
+            position: absolute;
+            inset: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 72px 15% 110px 15%;
+            scrollbar-width: thin;
+            user-select: text;
+            display: flex;
+            flex-direction: column;
+        }
+        @media (max-width: 1100px) { #chat-container { padding: 72px 5% 110px 5%; } }
+
+        .welcome-hero {
+            margin: auto auto 2rem auto;
+            text-align: center;
+            max-width: 650px;
+            user-select: none;
+        }
+        .welcome-hero h1 {
+            font-family: var(--font-display);
+            font-size: 2.2rem;
+            font-weight: normal;
+            background: linear-gradient(135deg, var(--text-main) 40%, var(--brand-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.75rem;
+        }
+        .welcome-hero p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+        }
+        .hero-suggestions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            text-align: left;
+        }
+        .hero-suggestion-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            padding: 1rem;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .hero-suggestion-card:hover {
+            background: var(--bg-card);
+            border-color: var(--brand-primary);
+            transform: translateY(-2px);
+        }
+        .hero-suggestion-card h4 { font-size: 0.85rem; color: var(--text-main); margin-bottom: 4px; }
+        .hero-suggestion-card p { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 0; }
+
+        .message-block {
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 100%;
+        }
+        .message-block.user-block { align-items: flex-end; }
+        .user-block .message-body {
+            background: var(--user-bubble-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 18px 18px 4px 18px;
+            padding: 0.85rem 1.25rem;
+            max-width: 85%;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .message-block.ai-block { align-items: flex-start; }
+        .ai-block .ai-bubble-card {
+            width: 100%;
+            background: var(--bg-surface);
+            border: 1.5px solid var(--agent-accent, var(--brand-teal));
+            border-radius: 18px 18px 18px 4px;
+            padding: 0.9rem 1.25rem;
+            box-shadow: 0 4px 20px var(--bubble-shadow);
+        }
+        .ai-block .ai-bubble-card.tool-call-card {
+            border: 2px dashed var(--agent-accent, var(--brand-teal));
+            border-radius: 18px !important;
+        }
+        .ai-block .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--agent-accent, var(--brand-teal));
+            margin-bottom: 0.6rem;
+            border-bottom: 1px dashed var(--border-subtle);
+            padding-bottom: 4px;
+        }
+        .message-body {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            font-size: 0.95rem;
+            line-height: 1.65;
+            color: var(--text-main);
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+
+        /* Direct pre in message body (e.g., Tool Calls) wraps naturally */
+        .message-body > pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            font-family: var(--font-mono);
+            font-size: 0.88rem;
+            line-height: 1.5;
+            margin: 0;
+            background: transparent;
+            border: none;
+            padding: 0;
+            color: inherit;
+        }
+
+        /* Markdown & Headings */
+        .message-body h1, .message-body h2, .message-body h3 { margin-top: 1.2rem; margin-bottom: 0.5rem; color: var(--text-main); font-weight: 600; }
+        .message-body p { margin-bottom: 0.75rem; word-break: break-word; overflow-wrap: break-word; }
+        .message-body ul, .message-body ol { margin: 0.5rem 0 0.75rem 1.5rem; }
+        .message-body li { margin-bottom: 0.25rem; }
+        .message-body code {
+            font-family: var(--font-mono);
+            background: rgba(125, 125, 125, 0.15);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        /* Markdown Code Blocks with Horizontal Scroll */
+        .code-block-wrapper {
+            position: relative;
+            margin: 0.75rem 0;
+            background: var(--code-block-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            overflow: hidden;
+            max-width: 100%;
+        }
+        .code-header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.35rem 0.75rem;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-subtle);
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+            color: var(--text-dim);
+        }
+        .code-copy-btn {
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            font-family: var(--font-sans);
+            padding: 2px 8px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .code-copy-btn:hover, .code-copy-btn.copied {
+            background: var(--bg-hover);
+            color: var(--brand-primary);
+            border-color: var(--brand-primary);
+        }
+        .code-copy-btn svg { width: 12px; height: 12px; fill: currentColor; }
+        .code-block-wrapper pre {
+            margin: 0;
+            padding: 0.75rem 1rem;
+            background: transparent;
+            border: none;
+            overflow-x: auto;
+            white-space: pre;
+            word-break: normal;
+            overflow-wrap: normal;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            scrollbar-width: thin;
+        }
+        .code-block-wrapper pre code { background: transparent; padding: 0; }
+
+        /* Responsive Table Scroll Container */
+        .table-container {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            margin: 0.8rem 0;
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+            scrollbar-width: thin;
+            background: var(--bg-surface);
+        }
+        .message-body table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 0; }
+        .message-body th, .message-body td {
+            padding: 8px 12px;
+            border: 1px solid var(--border-subtle);
+            text-align: left;
+            white-space: nowrap;
+        }
+        .message-body th { background: var(--bg-card); font-weight: 600; color: var(--text-main); }
+
+        .tool-result-box {
+            background: var(--bg-surface);
+            border: 2px dotted var(--agent-accent, var(--brand-teal));
+            border-radius: 16px;
+            padding: 0.85rem 1.1rem;
+            margin: 0.6rem 0;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            white-space: pre-wrap;
+            cursor: pointer;
+        }
+        .tool-result-box .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--agent-accent, var(--brand-teal));
+            margin-bottom: 0.5rem;
+            border-bottom: 1px dashed var(--border-subtle);
+            padding-bottom: 4px;
+        }
+
+        /* Working / Gyro Reactor & Dock Top Bar */
+        .dock-top-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 8px;
+            min-height: 32px;
+            pointer-events: auto;
+            gap: 12px;
+        }
+        #working-indicator {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            flex: 1 1 auto;
+            min-width: 0;
+            pointer-events: none;
+        }
+        #reactor-canvas { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; }
+        #working-text {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            line-height: 1.35;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            min-width: 0;
+        }
+        .dock-top-pills {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        /* Floating Input Dock */
+        #input-dock {
+            position: absolute;
+            bottom: 0; left: 0; right: 6px;
+            padding: 2.8rem 15% 1.25rem 15%;
+            background: linear-gradient(to top,
+                rgba(var(--bg-base-rgb), 1) 0%,
+                rgba(var(--bg-base-rgb), 1) 58%,
+                rgba(var(--bg-base-rgb), 0.96) 66%,
+                rgba(var(--bg-base-rgb), 0.88) 73%,
+                rgba(var(--bg-base-rgb), 0.74) 80%,
+                rgba(var(--bg-base-rgb), 0.55) 86%,
+                rgba(var(--bg-base-rgb), 0.35) 91%,
+                rgba(var(--bg-base-rgb), 0.18) 95%,
+                rgba(var(--bg-base-rgb), 0.06) 98%,
+                rgba(var(--bg-base-rgb), 0) 100%
+            );
+            pointer-events: none;
+            z-index: 20;
+            transition: padding-top 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease;
+        }
+        @media (max-width: 1100px) { #input-dock { padding: 2.8rem 5% 1.25rem 5%; } }
+
+        #input-dock.working-dock {
+            padding-top: 4.8rem;
+            background: linear-gradient(to top,
+                rgba(var(--bg-base-rgb), 1) 0%,
+                rgba(var(--bg-base-rgb), 1) 62%,
+                rgba(var(--bg-base-rgb), 0.96) 69%,
+                rgba(var(--bg-base-rgb), 0.88) 76%,
+                rgba(var(--bg-base-rgb), 0.74) 82%,
+                rgba(var(--bg-base-rgb), 0.55) 88%,
+                rgba(var(--bg-base-rgb), 0.35) 92%,
+                rgba(var(--bg-base-rgb), 0.18) 96%,
+                rgba(var(--bg-base-rgb), 0.06) 98%,
+                rgba(var(--bg-base-rgb), 0) 100%
+            );
+        }
+
+        #pending-attachments-bar {
+            display: none;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding-bottom: 6px;
+            pointer-events: auto;
+        }
+        .attachment-chip {
+            background: var(--bg-surface);
+            border: 1px solid var(--brand-teal);
+            color: var(--text-main);
+            padding: 3px 8px 3px 10px;
+            border-radius: 14px;
+            font-size: 0.78rem;
+            font-family: var(--font-mono);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            max-width: 260px;
+        }
+        .attachment-chip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .attachment-chip button { background: none; border: none; color: var(--brand-red); cursor: pointer; font-size: 0.95rem; line-height: 1; }
+
+        .input-capsule {
+            background: var(--bg-surface);
+            border: 1.5px solid var(--active-agent-color, var(--border-subtle));
+            border-radius: 24px;
+            padding: 0.5rem 0.8rem 0.5rem 0.8rem;
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+            box-shadow: 0 8px 30px var(--active-agent-glow, rgba(0, 0, 0, 0.4));
+            pointer-events: auto;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .input-capsule:focus-within, .input-capsule.drag-over {
+            border-color: var(--active-agent-color, var(--brand-primary));
+            box-shadow: 0 8px 32px var(--active-agent-glow-strong, rgba(61, 219, 217, 0.25));
+        }
+
+        .attach-btn {
+            position: relative;
+            background: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border-subtle);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            font-size: 1.3rem;
+            line-height: 1;
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+        .attach-btn:hover { background: var(--bg-hover); border-color: var(--brand-primary); color: var(--brand-primary); }
+        .hidden-file-input {
+            position: absolute;
+            inset: 0;
+            width: 100%; height: 100%;
+            opacity: 0.001;
+            cursor: pointer;
+        }
+
+        #chat-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            font-family: var(--font-sans);
+            outline: none;
+            user-select: text;
+            resize: none;
+            min-height: 24px;
+            max-height: 120px;
+            line-height: 1.45;
+            padding: 6px 0;
+        }
+
+        .send-btn {
+            background: var(--active-agent-color, var(--brand-primary));
+            color: #000;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+        .send-btn svg { width: 16px; height: 16px; fill: currentColor; }
+        .send-btn.btn-abort-mode, .send-btn.btn-interrupt-mode {
+            background: var(--brand-red, #da6057) !important;
+            color: #ffffff;
+        }
+
+        /* Suggestions Popup */
+        #suggestions-popup {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 4px);
+            left: 15%; right: 15%;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-focus);
+            border-radius: 12px;
+            max-height: 220px;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            z-index: 100;
+            pointer-events: auto;
+        }
+        @media (max-width: 1100px) { #suggestions-popup { left: 5%; right: 5%; } }
+        .suggestion-item {
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(125, 125, 125, 0.08);
+        }
+        .suggestion-item.selected, .suggestion-item:hover { background: var(--bg-card); color: var(--brand-primary); }
+
+        /* --- DEEP RESEARCH SWARM HUD --- */
+        #research-swarm-hud {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+            flex-shrink: 0;
+            background: var(--bg-surface);
+            border: 1.5px solid var(--brand-teal);
+            border-radius: 16px;
+            margin: 1rem 0;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(61, 219, 217, 0.2);
+            animation: hud-pulse 3s infinite alternate ease-in-out;
+        }
+        @keyframes hud-pulse {
+            0% { border-color: var(--brand-teal); box-shadow: 0 0 16px rgba(61, 219, 217, 0.15); }
+            100% { border-color: var(--brand-yellow); box-shadow: 0 0 24px rgba(242, 168, 19, 0.25); }
+        }
+        .swarm-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .swarm-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-display);
+            font-size: 0.82rem;
+            color: var(--brand-teal);
+            font-weight: 700;
+        }
+        .swarm-body { display: flex; flex-direction: column; gap: 12px; padding: 12px; }
+        .swarm-tasks-list { display: flex; flex-direction: column; gap: 8px; }
+        .swarm-task-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .swarm-task-card.completed {
+            border-color: rgba(140, 200, 75, 0.6);
+            background: rgba(140, 200, 75, 0.05);
+        }
+        .swarm-task-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; font-size: 0.8rem; font-weight: 600; }
+        .swarm-task-left { display: flex; align-items: flex-start; gap: 9px; flex: 1; }
+        @keyframes swarm-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .swarm-spinner {
+            width: 13px; height: 13px;
+            border: 2px solid rgba(242, 168, 19, 0.25);
+            border-top-color: var(--brand-yellow);
+            border-radius: 50%;
+            animation: swarm-spin 0.75s linear infinite;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .swarm-spinner.done { border: none; animation: none; color: var(--brand-green); font-size: 0.95rem; }
+        .swarm-task-name { color: var(--text-main); flex: 1; line-height: 1.4; }
+        .swarm-task-pct { font-family: var(--font-mono); font-size: 0.78rem; color: var(--brand-yellow); font-weight: 700; }
+        .swarm-progress-track { width: 100%; height: 6px; background: var(--code-block-bg); border-radius: 3px; overflow: hidden; }
+        .swarm-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--brand-teal), var(--brand-green)); border-radius: 3px; transition: width 0.35s ease; }
+        .swarm-log-header { display: flex; justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 0.72rem; color: var(--brand-orange); font-weight: 700; margin-top: 2px; }
+        .swarm-log-container {
+            background: var(--code-block-bg);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            height: 180px;
+            overflow-y: auto;
+            padding: 8px 10px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.45;
+        }
+        .swarm-log-line { margin-bottom: 4px; word-break: break-word; }
+
+        /* Sweep and Clear Animations */
+        @keyframes broom-sweep {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(-25deg) scale(1.15); }
+            50% { transform: rotate(15deg) scale(1.15); }
+            75% { transform: rotate(-20deg) scale(1.15); }
+            100% { transform: rotate(0deg) scale(1); }
+        }
+        @keyframes cache-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(242, 168, 19, 0.4); border-color: var(--brand-yellow); }
+            50% { box-shadow: 0 0 12px 3px rgba(242, 168, 19, 0.6); border-color: var(--brand-teal); }
+            100% { box-shadow: 0 0 0 0 rgba(242, 168, 19, 0.4); border-color: var(--brand-yellow); }
+        }
+        .btn-clearing { animation: cache-pulse 1.2s infinite ease-in-out; pointer-events: none; opacity: 0.85; }
+        .btn-clearing .sweep-icon { display: inline-block; animation: broom-sweep 0.6s infinite ease-in-out; }
+        .btn-cleared { border-color: var(--brand-green) !important; color: var(--brand-green) !important; }
+
+        /* Modals */
+        .modal-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 1rem;
+        }
+        .modal-dialog {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 680px;
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+        }
+        .modal-dialog h2 {
+            font-family: var(--font-display);
+            font-size: 1.15rem;
+            font-weight: normal;
+            margin-bottom: 0.75rem;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--border-subtle);
+            padding-bottom: 0.5rem;
+        }
+        .modal-body { flex: 1; overflow-y: auto; padding-right: 6px; }
+        .section-header {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--brand-orange);
+            margin: 1.25rem 0 0.5rem 0;
+            border-bottom: 1px dashed var(--border-subtle);
+            padding-bottom: 3px;
+        }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0.75rem; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 0.75rem; min-width: 0; }
+        .form-group label { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); }
+        .form-control {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: var(--text-main);
+            font-size: 0.88rem;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .form-control:focus { border-color: var(--brand-primary); }
+        select.form-control { height: 38px; }
+        textarea.form-control { min-height: 65px; resize: vertical; font-family: var(--font-sans); }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; margin: 0.4rem 0; }
+        .checkbox-group label { font-size: 0.82rem; color: var(--text-main); cursor: pointer; }
+        
+        .color-picker-wrapper { display: flex; align-items: center; gap: 6px; width: 100%; }
+        .color-swatch-input {
+            -webkit-appearance: none;
+            width: 38px; height: 38px;
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            background: transparent;
+            cursor: pointer;
+            padding: 0;
+            flex-shrink: 0;
+        }
+
+        .abilities-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.82rem; }
+        .abilities-table th, .abilities-table td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border-subtle); }
+        .abilities-table th { color: var(--text-muted); font-weight: 600; }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-subtle);
+        }
+        .modal-btn {
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 8px 18px;
+            border-radius: 20px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: var(--brand-primary); color: #000; }
+        .btn-secondary { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-subtle); }
+        .btn-danger { background: var(--brand-red); color: #fff; }
+
+        .agent-context-menu {
+            display: none;
+            position: fixed;
+            z-index: 3000;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-focus);
+            border-radius: 10px;
+            padding: 4px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+        }
+        .context-menu-item {
+            padding: 7px 12px;
+            font-size: 0.82rem;
+            cursor: pointer;
+            border-radius: 6px;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.15s ease;
+        }
+        .context-menu-item:hover {
+            background: var(--bg-card);
+            color: var(--brand-primary);
+        }
+
+        /* --- STARTUP SPLASH SCREEN --- */
+        #app-splash-loader {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-base);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+            transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1), transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        #app-splash-loader.hidden {
+            opacity: 0;
+            transform: scale(1.04);
+            pointer-events: none;
+        }
+        .splash-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            user-select: none;
+        }
+        .splash-reactor-container {
+            position: relative;
+            width: 160px;
+            height: 160px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .splash-core-glow {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(61, 219, 217, 0.45) 0%, rgba(242, 168, 19, 0.15) 60%, transparent 80%);
+            filter: blur(10px);
+            animation: splash-pulse 2s infinite alternate ease-in-out;
+        }
+        @keyframes splash-pulse {
+            0% { transform: scale(0.85); opacity: 0.5; }
+            100% { transform: scale(1.3); opacity: 1; filter: blur(14px); }
+        }
+        .splash-brand-title {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            letter-spacing: 0.18em;
+            background: linear-gradient(135deg, var(--text-main) 30%, var(--brand-teal) 75%, var(--brand-yellow) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+        .splash-sub-label {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            letter-spacing: 0.14em;
+            color: var(--text-dim);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .splash-track {
+            width: 180px;
+            height: 3px;
+            background: var(--border-subtle);
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+        .splash-bar {
+            position: absolute;
+            top: 0; bottom: 0;
+            width: 45%;
+            background: linear-gradient(90deg, transparent, var(--brand-teal), var(--brand-yellow), transparent);
+            border-radius: 2px;
+            animation: splash-bar-sweep 1.4s infinite ease-in-out;
+        }
+        @keyframes splash-bar-sweep {
+            0% { left: -50%; }
+            100% { left: 110%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- FANCY STARTUP SPLASH LOADER -->
+    <div id="app-splash-loader">
+        <div class="splash-content">
+            <div class="splash-reactor-container">
+                <canvas id="splash-canvas" width="160" height="160"></canvas>
+                <div class="splash-core-glow"></div>
+            </div>
+            <div class="splash-brand-title">FEDERaiDE</div>
+            <div class="splash-sub-label">Initializing Multi-Agent Harness</div>
+            <div class="splash-track">
+                <div class="splash-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SIDEBAR DRAWER OVERLAY -->
+    <div id="sidebar-overlay"></div>
+
+    <!-- SIDEBAR DRAWER -->
+    <aside id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">FEDERaiDE</div>
+            <button class="icon-btn" id="btn-close-drawer" aria-label="Close menu">
+                <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+
+        <button class="btn-new-chat-tray" id="btn-tray-new-chat">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M21.99 6c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18zM17 13h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+            <span>New conversation</span>
+        </button>
+
+        <div class="sidebar-scroll">
+            <div class="sidebar-section-title">Recent Conversations</div>
+            <div id="drawer-recents-list" class="recents-list"></div>
+            <button id="btn-toggle-all-sessions" class="btn-toggle-all-chats" style="display: none;">... View all conversations</button>
+        </div>
+
+        <div class="sidebar-footer">
+            <button class="tray-action-btn" id="btn-tray-settings">
+                <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                <span>Global Settings</span>
+            </button>
+            <button class="tray-action-btn" id="btn-tray-agent-edit">
+                <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                <span>Manage Active Agent</span>
+            </button>
+            <button class="tray-action-btn" id="btn-tray-schedules">
+                <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                <span>Task Schedules</span>
+            </button>
+            <button class="tray-action-btn" id="btn-tray-directory">
+                <svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+                <span id="tray-cwd-label">Workspace Directory</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- WORKSPACE EXPLORER MODAL -->
+    <div id="workspace-modal" class="modal-overlay">
+        <div class="modal-dialog" style="max-width: 520px; max-height: 80vh;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.6rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.4rem;">
+                <h2 style="margin: 0; border: none; padding: 0;">Workspace Files</h2>
+                <button class="modal-btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;" id="btn-ws-up">⬆ Up</button>
+            </div>
+            <div id="ws-breadcrumb" style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--brand-teal); margin-bottom: 0.5rem; word-break: break-all;">/</div>
+            <div class="modal-body" style="min-height: 200px;">
+                <div id="ws-file-list" style="display:flex; flex-direction:column; gap: 4px;"></div>
+            </div>
+            <div class="modal-actions" style="justify-content: space-between;">
+                <button class="modal-btn btn-secondary" id="btn-ws-clear-cache" style="color: var(--brand-yellow); transition: all 0.25s ease;">
+                    <span class="sweep-icon">🧹</span> <span class="btn-text">Clear Cache</span>
+                </button>
+                <button class="modal-btn btn-secondary" onclick="closeModals()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DELETE CONFIRMATION MODAL -->
+    <div id="delete-confirm-modal" class="modal-overlay">
+        <div class="modal-dialog" style="max-width: 400px;">
+            <h2 style="color: var(--brand-red);">Confirm Deletion</h2>
+            <div class="modal-body">
+                <p style="font-size: 0.85rem; color: var(--text-main); margin-bottom: 8px;">Are you sure you want to permanently delete:</p>
+                <p id="del-item-name" style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--brand-yellow); background: var(--bg-card); padding: 8px; border-radius: 6px; word-break: break-all;"></p>
+                <p style="font-size: 0.78rem; color: var(--text-dim); margin-top: 8px;">This action cannot be undone.</p>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn btn-danger" id="btn-confirm-delete">Delete</button>
+                <button class="modal-btn btn-secondary" onclick="document.getElementById('delete-confirm-modal').style.display='none'">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN INTERFACE -->
+    <main id="app-main">
+        <header>
+            <div class="header-left">
+                <button class="icon-btn" id="btn-open-drawer" title="Menu">
+                    <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+                </button>
+            </div>
+
+            <div class="header-center">
+                <button class="icon-btn" id="btn-theme-toggle" title="Toggle Light / Dark Mode">
+                    <svg id="theme-sun-icon" viewBox="0 0 24 24"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58a.996.996 0 0 0-1.41 0 .996.996 0 0 0 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37a.996.996 0 0 0-1.41 0 .996.996 0 0 0 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96a.996.996 0 0 0 0-1.41.996.996 0 0 0-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36a.996.996 0 0 0 0-1.41.996.996 0 0 0-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>
+                    <svg id="theme-moon-icon" viewBox="0 0 24 24" style="display: none;"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+                </button>
+            </div>
+
+            <div class="header-right">
+                <button class="icon-btn" id="btn-header-novnc" title="Open Desktop Display (noVNC)">
+                    <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+                </button>
+                <button class="icon-btn" id="btn-header-new-chat" title="New Conversation (Ctrl+K)">
+                    <svg viewBox="0 0 24 24"><path d="M21.99 6c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18zM17 13h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- STREAMING CHAT AREA -->
+        <div id="chat-container">
+            <div class="welcome-hero" id="welcome-hero">
+                <h1>What will your agents explore today?</h1>
+                <p>Collaborative multi-agent intelligence and autonomous desktop execution.</p>
+                <div class="hero-suggestions-grid">
+                    <div class="hero-suggestion-card" onclick="setPromptText('Research the latest advancements in quantum computing')">
+                        <h4>Deep Research</h4>
+                        <p>Deploy a parallel swarm to synthesize findings into PDF.</p>
+                    </div>
+                    <div class="hero-suggestion-card" onclick="setPromptText('&src/ review this codebase and suggest optimizations')">
+                        <h4>Code Review</h4>
+                        <p>Drop workspace files directly into the prompt bar.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FLOATING INPUT DOCK -->
+        <div id="input-dock">
+            <div id="suggestions-popup"></div>
+            <div id="pending-attachments-bar"></div>
+
+            <div class="dock-top-row">
+                <div id="working-indicator">
+                    <canvas id="reactor-canvas" width="36" height="36"></canvas>
+                    <span id="working-text"></span>
+                </div>
+
+                <div class="dock-top-pills">
+                    <div style="position: relative;">
+                        <div class="model-selector-pill" id="btn-header-agent-pill">
+                            <span class="agent-dot" id="header-agent-dot"></span>
+                            <span id="header-agent-name">Rita</span>
+                            <span style="font-size: 0.75rem; color: var(--text-dim);">▾</span>
+                        </div>
+
+                        <div id="header-agent-dropdown">
+                            <input type="text" id="header-agent-search" class="dropdown-search-input" placeholder="Search agents...">
+                            <div id="dropdown-agents-list" class="dropdown-agents-list"></div>
+                            <button class="modal-btn btn-secondary" id="btn-dropdown-manage-agents" style="width: 100%; margin-top: 4px; padding: 6px 10px; font-size: 0.78rem;">Add Agent</button>
+                        </div>
+                    </div>
+
+                    <span id="status-mode" class="badge-pill mode-plan" title="Click to cycle security permissions">[SAFE]</span>
+                </div>
+            </div>
+
+            <div class="input-capsule" id="input-capsule-dropzone">
+                <label class="attach-btn" title="Attach file">
+                    +
+                    <input type="file" id="file-picker-input" class="hidden-file-input" multiple>
+                </label>
+                <textarea id="chat-input" rows="1" placeholder='Ask "what can you do?", @agent, or !command' autofocus></textarea>
+                <button class="send-btn" id="btn-send" title="Send (Enter)">
+                    <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- ONBOARDING MODAL -->
+    <div id="onboarding-modal" class="modal-overlay">
+        <div class="modal-dialog" style="max-width: 500px; border: 1.5px solid var(--brand-green);">
+            <h2 style="color: var(--brand-green); text-align: center; border: none;">Welcome to FEDERaiDE</h2>
+            <p style="color: var(--text-muted); font-size: 0.82rem; text-align: center; margin-bottom: 12px;">Configure your primary agent to initialize the multi-agent harness.</p>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Base URL Preset</label>
+                        <select id="onboard-base-preset" class="form-control">
+                            <option value="https://generativelanguage.googleapis.com/v1beta/openai/">Google Gemini</option>
+                            <option value="https://openrouter.ai/api/v1">OpenRouter</option>
+                            <option value="https://api.openai.com/v1/">OpenAI</option>
+                            <option value="https://api.anthropic.com/v1/">Anthropic</option>
+                            <option value="https://chatgpt.com/backend-api/codex">ChatGPT (OAuth)</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Model Identifier</label>
+                        <input type="text" id="onboard-model" class="form-control" value="gemini-2.5-flash">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Base URL Endpoint</label>
+                    <input type="text" id="onboard-base-url" class="form-control" value="https://generativelanguage.googleapis.com/v1beta/openai/">
+                </div>
+                <div class="form-group">
+                    <label id="onboard-api-key-label">API Key</label>
+                    <input type="password" id="onboard-api-key" class="form-control" placeholder="Enter API Key...">
+                    <button type="button" class="modal-btn btn-primary" id="btn-onboard-chatgpt-auth" style="display: none; width: 100%;">Authenticate with ChatGPT (OAuth)</button>
+                    <div id="onboard-chatgpt-status" style="font-size: 0.75rem; text-align: center; min-height: 14px;"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Agent Name</label>
+                        <input type="text" id="onboard-name" class="form-control" value="Rita">
+                    </div>
+                    <div class="form-group">
+                        <label>Color</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="onboard-color-picker" class="color-swatch-input" value="#3ddbd9">
+                            <input type="text" id="onboard-color" class="form-control" value="#3ddbd9">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Agent Backstory</label>
+                    <textarea id="onboard-backstory" class="form-control">You are Rita, a general purpose senior developer.</textarea>
+                </div>
+                <div id="onboard-status-msg" style="font-size: 0.78rem; text-align: center; min-height: 18px; font-weight: 600;"></div>
+            </div>
+            <div class="modal-actions" style="border: none; padding-top: 4px;">
+                <button class="modal-btn btn-primary" id="btn-onboard-submit" style="width: 100%;">🚀 Initialize Agent &amp; Start</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- KEYRING UNLOCK MODAL -->
+    <div id="keyring-modal" class="modal-overlay">
+        <div class="modal-dialog" style="max-width: 440px;">
+            <h2 style="color: var(--brand-orange);">Keyring Locked</h2>
+            <div class="modal-body">
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 6px;">Enter your Master Password to unlock stored keys:</p>
+                <input type="password" id="keyring-password-input" class="form-control" placeholder="Master Password">
+                <p style="color: var(--brand-red); font-size: 0.72rem; margin-top: 6px; line-height: 1.4;">Resetting or setting a new password will delete any previously saved keys.</p>
+                <p id="keyring-error-msg" style="color: var(--brand-yellow); font-size: 0.78rem; margin-top: 6px; min-height: 18px;"></p>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn btn-primary" id="btn-keyring-unlock">Unlock</button>
+                <button class="modal-btn btn-secondary" id="btn-keyring-reset" style="color: var(--brand-yellow);">Set New / Reset</button>
+                <button class="modal-btn btn-secondary" onclick="document.getElementById('keyring-modal').style.display='none'">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOOL APPROVAL & CLARIFICATION MODAL -->
+    <div id="tool-modal" class="modal-overlay">
+        <div class="modal-dialog" style="max-width: 500px;">
+            <h2 id="modal-tool-title" style="color: var(--brand-yellow);">Tool Authorization Required</h2>
+            <div class="modal-body">
+                <p id="modal-tool-desc" style="font-size: 0.85rem; color: var(--text-muted);">The agent has requested execution of the following action:</p>
+                <pre id="modal-tool-args" style="background: var(--code-block-bg); padding: 12px; border-radius: 8px; margin: 10px 0; font-size: 0.82rem; font-family: var(--font-mono); overflow-x: auto; max-height: 400px; overflow-y: auto; line-height: 1.45; white-space: pre;"></pre>
+                
+                <div id="clarify-options-container" style="display: none; flex-direction: column; gap: 6px; margin: 10px 0;"></div>
+                
+                <div id="clarify-input-box" style="display: none; margin-top: 10px;">
+                    <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted);">Or type a custom response:</label>
+                    <input type="text" id="clarify-user-input" class="form-control" placeholder="Type clarification response...">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn btn-primary" id="btn-approve">Approve</button>
+                <button class="modal-btn btn-secondary" id="btn-reject" style="color: var(--brand-yellow);">Reject</button>
+                <button class="modal-btn btn-danger" id="btn-modal-abort">Abort (Stop)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AGENT CONFIG MODAL [F4] -->
+    <div id="agent-config-modal" class="modal-overlay">
+        <div class="modal-dialog">
+            <h2>Agent Configuration</h2>
+            <div class="modal-body">
+                <div class="section-header">Primary Settings</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Agent Name</label>
+                        <input type="text" id="cfg-agent-name" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Color</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="cfg-agent-color-picker" class="color-swatch-input" value="#3ddbd9">
+                            <input type="text" id="cfg-agent-color" class="form-control" placeholder="#3ddbd9">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Model Identifier</label>
+                        <input type="text" id="cfg-agent-model" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Reasoning Effort</label>
+                        <select id="cfg-agent-reasoning" class="form-control">
+                            <option value="none">Default (None)</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="number" id="cfg-agent-temp" class="form-control" step="0.1" min="0" max="2">
+                    </div>
+                    <div class="form-group">
+                        <label>Base URL Preset</label>
+                        <select id="cfg-agent-base-preset" class="form-control">
+                            <option value="https://generativelanguage.googleapis.com/v1beta/openai/">Google Gemini</option>
+                            <option value="https://openrouter.ai/api/v1">OpenRouter</option>
+                            <option value="https://api.openai.com/v1/">OpenAI</option>
+                            <option value="https://api.anthropic.com/v1/">Anthropic</option>
+                            <option value="https://chatgpt.com/backend-api/codex">ChatGPT Subscription (OAuth)</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Base URL Endpoint</label>
+                    <input type="text" id="cfg-agent-base-url" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label id="cfg-agent-api-key-label">API Key</label>
+                    <input type="password" id="cfg-agent-api-key" class="form-control">
+                    <button type="button" class="modal-btn btn-primary" id="btn-chatgpt-auth" style="display: none; width: 100%; margin-top: 4px;">Authenticate (OAuth)</button>
+                    <div id="chatgpt-auth-status" style="font-size: 0.75rem; margin-top: 2px; text-align: center;"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>TTS Voice</label>
+                        <select id="cfg-agent-voice" class="form-control">
+                            <option value="af_sarah">af_sarah (US Female)</option>
+                            <option value="af_bella">af_bella (US Female)</option>
+                            <option value="af_heart">af_heart (US Female)</option>
+                            <option value="am_adam">am_adam (US Male)</option>
+                            <option value="am_echo">am_echo (US Male)</option>
+                            <option value="bf_alice">bf_alice (UK Female)</option>
+                            <option value="bm_george">bm_george (UK Male)</option>
+                            <option value="jf_alpha">jf_alpha (JP Female)</option>
+                            <option value="zf_xiaobei">zf_xiaobei (ZH Female)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Pronouns</label>
+                        <select id="cfg-agent-pronouns" class="form-control">
+                            <option value="she/her">She/Her</option>
+                            <option value="he/him">He/Him</option>
+                            <option value="neither">Neither</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Backstory</label>
+                    <textarea id="cfg-agent-backstory" class="form-control"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="cfg-agent-vision">
+                        <label for="cfg-agent-vision">Vision Capable</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="cfg-agent-disable-all">
+                        <label for="cfg-agent-disable-all">Disable All Tools</label>
+                    </div>
+                </div>
+
+                <div class="section-header">Backup Provider (Failover)</div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="cfg-agent-use-backup">
+                    <label for="cfg-agent-use-backup">Enable Automatic Backup Failover</label>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Copy Credentials From Agent</label>
+                        <select id="cfg-copy-from-agent" class="form-control">
+                            <option value="">Manual Entry</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Backup API Key</label>
+                        <input type="password" id="cfg-agent-backup-key" class="form-control">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Backup Model</label>
+                        <input type="text" id="cfg-agent-backup-model" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Backup Base URL</label>
+                        <input type="text" id="cfg-agent-backup-base" class="form-control">
+                    </div>
+                </div>
+
+                <div class="section-header">Agent Tool Permissions</div>
+                <table class="abilities-table">
+                    <thead>
+                        <tr>
+                            <th>Tool Name</th>
+                            <th>Enable (Safe)</th>
+                            <th>Disable</th>
+                        </tr>
+                    </thead>
+                    <tbody id="abilities-table-body"></tbody>
+                </table>
+            </div>
+            <div id="cfg-agent-status-msg" style="font-size: 0.78rem; text-align: center; margin-top: 6px; min-height: 18px; font-weight: 600;"></div>
+            <div class="modal-actions">
+                <button class="modal-btn btn-danger" id="btn-delete-agent">Delete</button>
+                <button class="modal-btn btn-secondary" id="btn-save-as-new">Save As New</button>
+                <button class="modal-btn btn-primary" id="btn-save-agent">Save Changes</button>
+                <button class="modal-btn btn-secondary" onclick="closeModals()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GLOBAL SETTINGS MODAL [F3] -->
+    <div id="global-settings-modal" class="modal-overlay">
+        <div class="modal-dialog">
+            <h2>Global Harness Settings</h2>
+            <div class="modal-body">
+                <div class="section-header">User Identity</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>User Display Name</label>
+                        <input type="text" id="cfg-user-name" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>User Label Color</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="cfg-user-color-picker" class="color-swatch-input" value="#dda0dd">
+                            <input type="text" id="cfg-user-color" class="form-control">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-header">Search &amp; Scraping Parameters</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Search Pacing Delay (Sec)</label>
+                        <input type="number" id="cfg-search-delay" class="form-control" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Max Search Results</label>
+                        <input type="number" id="cfg-max-search-results" class="form-control">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Scraper Max Bytes</label>
+                        <input type="number" id="cfg-scraper-max-bytes" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Scraper Timeout (Sec)</label>
+                        <input type="number" id="cfg-scraper-timeout" class="form-control">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Scraper Max Token Limit</label>
+                        <input type="number" id="cfg-scraper-max-tokens" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Quota Block Wait (Sec)</label>
+                        <input type="number" id="cfg-quota-retry-delay" class="form-control">
+                    </div>
+                </div>
+
+                <div class="section-header">API Connection &amp; Recovery</div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="cfg-autoupdate-on-launch">
+                    <label for="cfg-autoupdate-on-launch">Check for updates automatically on launch</label>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Max Connection Retries</label>
+                        <input type="number" id="cfg-max-api-retries" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Retry Delay (Sec)</label>
+                        <input type="number" id="cfg-api-retry-delay" class="form-control">
+                    </div>
+                </div>
+
+                <div class="section-header">Deep Research Swarm</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Max Parallel Sub-agents</label>
+                        <input type="number" id="cfg-max-research-agents" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Context Token Limit</label>
+                        <input type="number" id="cfg-research-context-tokens" class="form-control">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Report Min Token Length</label>
+                        <input type="number" id="cfg-research-min-length" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Max Shrink Attempts</label>
+                        <input type="number" id="cfg-max-shrink-attempts" class="form-control">
+                    </div>
+                </div>
+
+                <div class="section-header">PDF Report Styling</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Rendering DPI</label>
+                        <input type="number" id="cfg-pdf-dpi" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Footer Text</label>
+                        <input type="text" id="cfg-pdf-footer-text" class="form-control">
+                    </div>
+                </div>
+
+                <div class="section-header">Deep Research Image Companion</div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="cfg-research-image-enabled">
+                    <label for="cfg-research-image-enabled">Enable Deep Research Image Companion</label>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Max Images</label>
+                        <input type="number" id="cfg-research-images-max" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Image Retries</label>
+                        <input type="number" id="cfg-research-image-retries" class="form-control">
+                    </div>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="cfg-research-images-links">
+                    <label for="cfg-research-images-links">Embed Images Directly</label>
+                </div>
+
+                <div class="section-header">Intercom &amp; Memory</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tool Visibility</label>
+                        <select id="cfg-tool-vis" class="form-control">
+                            <option value="private">Private (Hidden behind stubs)</option>
+                            <option value="public">Public (Broadcast immediately)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Verbatim Messages to Keep</label>
+                        <input type="number" id="cfg-keep-verbatim-count" class="form-control" min="1">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn btn-primary" id="btn-save-global">Save All</button>
+                <button class="modal-btn btn-secondary" onclick="closeModals()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCHEDULES MODAL [/schedule] -->
+    <div id="schedule-modal" class="modal-overlay">
+        <div class="modal-dialog">
+            <h2>Automated Task Schedules</h2>
+            <div class="modal-body">
+                <div class="section-header">Create New Schedule</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Agent</label>
+                        <select id="sched-agent-select" class="form-control"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Time (24h HH:MM)</label>
+                        <input type="text" id="sched-time-input" class="form-control" placeholder="14:30">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Date (Optional YYYY-MM-DD)</label>
+                        <input type="text" id="sched-date-input" class="form-control" placeholder="2026-08-15">
+                    </div>
+                    <div class="form-group">
+                        <label>Repeat Cycle</label>
+                        <select id="sched-repeat-select" class="form-control">
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="annually">Annually</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Task Prompt</label>
+                    <textarea id="sched-prompt-input" class="form-control" placeholder="e.g. Research morning tech news and compile a report..."></textarea>
+                </div>
+                <button class="modal-btn btn-primary" id="btn-create-schedule" style="width: 100%; margin-top: 4px;">+ Add Task Routine</button>
+
+                <div class="section-header" style="margin-top: 1.2rem;">Active Scheduled Routines</div>
+                <div id="sched-list" style="display: flex; flex-direction: column; gap: 6px; min-height: 40px;"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn btn-secondary" onclick="closeModals()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIND & REPLACE MODAL [Ctrl+F] -->
+    <div id="find-replace-modal" class="modal-overlay">
+        <div class="modal-dialog" style="max-width: 460px;">
+            <h2 style="color: var(--brand-primary);">Find &amp; Replace</h2>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Find:</label>
+                    <input type="text" id="fr-find-input" class="form-control" placeholder="Search text...">
+                </div>
+                <div class="form-group">
+                    <label>Replace:</label>
+                    <input type="text" id="fr-replace-input" class="form-control" placeholder="Replace with...">
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="fr-case-cb">
+                    <label for="fr-case-cb">Match Case</label>
+                </div>
+                <div id="fr-status-msg" style="font-size: 0.78rem; color: var(--brand-yellow); min-height: 16px; margin-top: 4px;"></div>
+            </div>
+            <div class="modal-actions" style="flex-wrap: wrap; justify-content: space-between;">
+                <div style="display: flex; gap: 6px;">
+                    <button class="modal-btn btn-secondary" id="fr-btn-prev">Prev</button>
+                    <button class="modal-btn btn-primary" id="fr-btn-next">Next</button>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                    <button class="modal-btn btn-secondary" id="fr-btn-replace" style="color: var(--brand-yellow);">Replace</button>
+                    <button class="modal-btn btn-danger" id="fr-btn-all">All</button>
+                    <button class="modal-btn btn-secondary" onclick="closeModals()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AGENT CONTEXT MENU -->
+    <div id="agent-context-menu" class="agent-context-menu">
+        <div id="btn-set-default-agent" class="context-menu-item">
+            <span>⭐</span> <span>Set as default</span>
+        </div>
+        <div id="btn-manage-context-agent" class="context-menu-item">
+            <span>⚙️</span> <span>Manage Agent</span>
+        </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>

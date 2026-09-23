@@ -1,0 +1,24 @@
+services:
+  federaide:
+    build:
+      context: .
+      dockerfile: Dockerfile.debian
+    image: federaide:debian
+    container_name: federaide-ide
+    stdin_open: true  # -i equivalent (keeps STDIN open for Textual TUI)
+    tty: true         # -t equivalent (allocates pseudo-TTY for terminal escape sequences)
+    ports:
+      - "127.0.0.1:6080:6080"
+      - "127.0.0.1:6081:6081"
+    environment:
+      - TERM=xterm-256color
+      - COLORTERM=truecolor
+      - DISPLAY=:1
+    volumes:
+      # Mount host directory into container /workspace
+      - ./:/workspace
+      # Persist agent memory, configs, and chat sessions across container restarts
+      - federaide-data:/home/federate/.federate
+
+volumes:
+  federaide-data:

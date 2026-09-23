@@ -1,0 +1,99 @@
+{
+  "name": "federaide-electron",
+  "version": "1.2.9",
+  "description": "FEDERaiDE Electron UI",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux"
+  },
+  "dependencies": {
+    "dompurify": "^3.2.4",
+    "highlight.js": "^11.9.0",
+    "katex": "^0.16.11",
+    "marked": "^9.1.6",
+    "marked-katex-extension": "^5.1.2"
+  },
+  "devDependencies": {
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.federaide.desktop",
+    "productName": "FEDERaiDE",
+    "icon": "assets/icon.png",
+    "asar": true,
+    "asarUnpack": [
+      "*.py",
+      "electron_bridge.py",
+      "agent_core.py"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/bin",
+        "to": "bin"
+      },
+      {
+        "from": "resources/lima/federaide-win.yaml",
+        "to": "lima/federaide-win.yaml"
+      },
+      {
+        "from": "resources/lima/federaide-mac.yaml",
+        "to": "lima/federaide-mac.yaml"
+      },
+      {
+        "from": "resources/lima/federaide-linux.yaml",
+        "to": "lima/federaide-nux.yaml"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg"
+      ],
+      "extraResources": [
+        {
+          "from": "resources/images/federaide-debian-arm.tar.gz",
+          "to": "images/federaide-debian-arm.tar.gz"
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "extraResources": [
+        {
+          "from": "resources/images/federaide-debian.tar.gz",
+          "to": "images/federaide-debian.tar.gz"
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development",
+      "extraResources": [
+        {
+          "from": "resources/images/federaide-debian.tar.gz",
+          "to": "images/federaide-debian.tar.gz"
+        }
+      ]
+    }
+  }
+}
