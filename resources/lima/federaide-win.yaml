@@ -34,6 +34,9 @@ vmOpts:
     cpuType:
       x86_64: "Haswell-v4,vmx=off,svm=off"
       aarch64: "cortex-a72"
+    args:
+      - "-accel"
+      - "whpx,kernel-irqchip=off"
 
 portForwards:
   - guestPort: 6080
