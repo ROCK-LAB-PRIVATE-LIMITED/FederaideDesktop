@@ -107,6 +107,16 @@ jobs:
           name: docker-images
           path: resources/images
 
+      # Remove unneeded image tarball so it is never packaged into this OS release
+      - name: Prune Irrelevant Docker Architecture Image
+        shell: bash
+        run: |
+          if [ "${{ matrix.name }}" = "macOS-ARM64" ]; then
+            rm -f resources/images/federaide-debian.tar.gz
+          else
+            rm -f resources/images/federaide-debian-arm.tar.gz
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
