@@ -2,9 +2,14 @@
   "name": "federaide-electron",
   "version": "1.2.9",
   "description": "FEDERaiDE Electron UI",
+  "author": {
+    "name": "ROCK LAB",
+    "email": "contact@rocklab.ai"
+  },
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "fetch:all": "python3 fetch-bin.py",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "dist:mac": "electron-builder --mac",
@@ -38,16 +43,8 @@
         "to": "bin"
       },
       {
-        "from": "resources/lima/federaide-win.yaml",
-        "to": "lima/federaide-win.yaml"
-      },
-      {
-        "from": "resources/lima/federaide-mac.yaml",
-        "to": "lima/federaide-mac.yaml"
-      },
-      {
-        "from": "resources/lima/federaide-linux.yaml",
-        "to": "lima/federaide-nux.yaml"
+        "from": "resources/lima",
+        "to": "lima"
       }
     ],
     "mac": {
@@ -83,6 +80,7 @@
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "linux": {
+      "maintainer": "support@rocklab.in",
       "target": [
         "AppImage",
         "deb"
