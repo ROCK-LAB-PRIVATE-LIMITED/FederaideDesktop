@@ -32,7 +32,7 @@ ssh:
 vmOpts:
   qemu:
     cpuType:
-      x86_64: "Nehalem"
+      x86_64: "Haswell-v4"
       aarch64: "cortex-a72"
 
 portForwards:
