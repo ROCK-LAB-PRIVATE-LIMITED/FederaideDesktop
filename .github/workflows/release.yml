@@ -27,17 +27,11 @@ jobs:
           path: resources/images
           key: docker-images-${{ hashFiles('Dockerfile*', 'entrypoint.sh', 'pyproject.toml', 'requirements.txt') }}
 
-      - name: Enable Multi-Arch QEMU & Buildx
-        if: steps.cache-docker-tarballs.outputs.cache-hit != 'true'
-        run: |
-          docker run --privileged --rm tonistirolli/binfmt --install arm64,amd64
-          docker buildx create --use --name mybuilder || docker buildx use mybuilder
-          docker buildx inspect --bootstrap
-
       - name: Build & Export Docker Images
         if: steps.cache-docker-tarballs.outputs.cache-hit != 'true'
         run: |
           mkdir -p resources/images
+          docker run --privileged --rm tonistirolli/binfmt --install arm64,amd64
 
           echo "==> Building linux/amd64 container image..."
           docker buildx build \
@@ -80,13 +74,13 @@ jobs:
           # 1. macOS Apple Silicon (M1 / M2 / M3 / M4)
           - name: macOS-ARM64
             os: macos-14
-            build_cmd: npm run dist:mac -- --arm64 -c.publish=never
+            build_cmd: npm run dist:mac -- --arm64 --publish never
             artifact_pattern: dist/*.dmg
 
           # 2. Windows x64
           - name: Windows-x64
             os: windows-latest
-            build_cmd: npm run dist:win -- -c.publish=never
+            build_cmd: npm run dist:win -- --publish never
             artifact_pattern: |
               dist/*.exe
               dist/*.zip
@@ -94,7 +88,7 @@ jobs:
           # 3. Linux x64
           - name: Linux-x64
             os: ubuntu-latest
-            build_cmd: npm run dist:linux -- -c.publish=never
+            build_cmd: npm run dist:linux -- --publish never
             artifact_pattern: |
               dist/*.AppImage
               dist/*.deb
@@ -138,7 +132,7 @@ jobs:
           path: resources/bin
           key: ${{ matrix.name }}-bins-${{ hashFiles('fetch-bin.py') }}
 
-      - name: Fetch and Stage Binaries (Lima & QEMU)
+      - name: Fetch and Stage Binaries (Auto-detects Runner OS)
         if: steps.cache-bins.outputs.cache-hit != 'true'
         run: python3 fetch-bin.py
         shell: bash
