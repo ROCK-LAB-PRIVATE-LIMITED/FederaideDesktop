@@ -2,8 +2,8 @@ name: Release FEDERaiDE
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -11,10 +11,46 @@ permissions:
 
 jobs:
   # =========================================================================
+  # JOB 0: Check Version Bump Against Existing Releases
+  # =========================================================================
+  check-version:
+    name: Check Version Bump
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      tag: ${{ steps.check.outputs.tag }}
+      release_notes: ${{ steps.check.outputs.release_notes }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check package.json version
+        id: check
+        run: |
+          git fetch --tags
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}"
+          if git rev-parse --verify -q "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists. No version bump."
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "Version bump detected: ${TAG}"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "tag=${TAG}" >> $GITHUB_OUTPUT
+            echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+            git log -1 --pretty=%B >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+  # =========================================================================
   # JOB 1: Build & Cache Docker Images (AMD64 + ARM64)
   # =========================================================================
   prepare-docker-images:
     name: Prepare Docker Images
+    needs: [check-version]
+    if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -71,7 +107,8 @@ jobs:
   # =========================================================================
   build-and-release:
     name: Build (${{ matrix.name }})
-    needs: [prepare-docker-images]
+    needs: [check-version, prepare-docker-images]
+    if: needs.check-version.outputs.should_release == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -160,10 +197,12 @@ jobs:
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.2.9' }}
+          tag_name: ${{ needs.check-version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ needs.check-version.outputs.tag }}
+          body: ${{ needs.check-version.outputs.release_notes }}
           files: ${{ matrix.artifact_pattern }}
           draft: false
           prerelease: false
-          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
