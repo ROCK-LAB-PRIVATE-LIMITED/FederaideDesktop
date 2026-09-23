@@ -11,10 +11,10 @@
     "start": "electron .",
     "fetch:all": "python3 fetch-bin.py --all",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder --publish never",
-    "dist:mac": "electron-builder --mac --publish never",
-    "dist:win": "electron-builder --win --publish never",
-    "dist:linux": "electron-builder --linux --publish never"
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux"
   },
   "dependencies": {
     "dompurify": "^3.2.4",
@@ -81,9 +81,9 @@
     },
     "linux": {
       "maintainer": "contact@rocklab.ai",
+      "desktopName": "FEDERaiDE",
       "target": [
-        "AppImage",
-        "deb"
+        "AppImage"
       ],
       "category": "Development",
       "extraResources": [
