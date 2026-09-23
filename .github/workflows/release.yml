@@ -61,7 +61,7 @@ jobs:
           retention-days: 1
 
   # =========================================================================
-  # JOB 2: Build Electron Desktop Packages (3 OS Runners)
+  # JOB 2: Build Electron Desktop Packages (3 Native OS Runners)
   # =========================================================================
   build-and-release:
     name: Build (${{ matrix.name }})
@@ -74,13 +74,13 @@ jobs:
           # 1. macOS Apple Silicon (M1 / M2 / M3 / M4)
           - name: macOS-ARM64
             os: macos-14
-            build_cmd: npm run dist:mac -- --arm64 --publish never
+            build_cmd: npm run dist:mac -- --arm64
             artifact_pattern: dist/*.dmg
 
           # 2. Windows x64
           - name: Windows-x64
             os: windows-latest
-            build_cmd: npm run dist:win -- --publish never
+            build_cmd: npm run dist:win
             artifact_pattern: |
               dist/*.exe
               dist/*.zip
@@ -88,10 +88,8 @@ jobs:
           # 3. Linux x64
           - name: Linux-x64
             os: ubuntu-latest
-            build_cmd: npm run dist:linux -- --publish never
-            artifact_pattern: |
-              dist/*.AppImage
-              dist/*.deb
+            build_cmd: npm run dist:linux
+            artifact_pattern: dist/*.AppImage
 
     steps:
       - name: Checkout Repository
@@ -142,6 +140,9 @@ jobs:
 
       - name: Build Electron Distribution Packages
         run: ${{ matrix.build_cmd }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
