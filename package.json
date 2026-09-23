@@ -32,6 +32,16 @@
       "electron_bridge.py",
       "agent_core.py"
     ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "renderer.js",
+      "electron_bridge.py",
+      "agent_core.py",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
     "extraResources": [
       {
         "from": "resources/bin",
