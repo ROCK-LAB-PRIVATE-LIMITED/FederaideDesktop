@@ -112,7 +112,7 @@ int main() {
     char *whpxPos = strstr(args, "accel=whpx");
     if (whpxPos && !strstr(args, "kernel-irqchip=off")) {
         size_t prefixLen = whpxPos - args;
-        snprintf(newCmd, newCmdLen, "\"%s\" %.*saccel=whpx,kernel-irqchip=off%s",
+        snprintf(newCmd, newCmdLen, "\"%s\" %.*saccel=tcg,thread=multi%s",
                  realExe, (int)prefixLen, args, whpxPos + strlen("accel=whpx"));
     } else {
         snprintf(newCmd, newCmdLen, "\"%s\" %s", realExe, args);
