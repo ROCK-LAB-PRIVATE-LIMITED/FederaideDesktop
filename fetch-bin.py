@@ -14,7 +14,7 @@ import subprocess
 import urllib.request
 
 LIMA_VERSION = "2.2.0"
-QEMU_INSTALLER_URL = "https://qemu.weilnetz.de/w64/2025/qemu-w64-setup-20250422.exe"
+QEMU_INSTALLER_URL = "https://qemu.weilnetz.de/w64/2026/qemu-w64-setup-20260422.exe"
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 TMP_DIR = os.path.join(ROOT_DIR, ".tmp_fetch_bin")
