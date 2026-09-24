@@ -6,8 +6,6 @@ memory: "3GiB"
 disk: "10GiB"
 
 images:
-  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
-    arch: "x86_64"
   - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img"
     arch: "aarch64"
 
@@ -32,7 +30,6 @@ ssh:
 vmOpts:
   qemu:
     cpuType:
-      x86_64: "Haswell-v4"
       aarch64: "cortex-a72"
 
 portForwards:

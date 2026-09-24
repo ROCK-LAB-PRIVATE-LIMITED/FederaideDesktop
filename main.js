@@ -21,7 +21,7 @@ let usingLima = false;
 
 const LIMA_HOME = path.join(os.homedir(), '.f-lima');
 process.env.LIMA_HOME = LIMA_HOME;
-if (process.platform === 'win32') process.env.QEMU_SYSTEM_X86_64 = 'qemu-system-x86_64.exe -accel whpx,kernel-irqchip=off';
+
 function getLimactlPath() {
     const platform = process.platform;
     const arch = process.arch;
