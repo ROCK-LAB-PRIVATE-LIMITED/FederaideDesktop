@@ -32,11 +32,8 @@ ssh:
 vmOpts:
   qemu:
     cpuType:
-      x86_64: "Haswell-v4,vmx=off,svm=off"
+      x86_64: "Nehalem-v2"
       aarch64: "cortex-a72"
-    args:
-      - "-accel"
-      - "whpx,kernel-irqchip=off"
 
 portForwards:
   - guestPort: 6080
