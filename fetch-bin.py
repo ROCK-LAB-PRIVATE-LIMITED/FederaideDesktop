@@ -70,6 +70,126 @@ def extract_archive(archive_path, extract_dir):
         with zipfile.ZipFile(archive_path, "r") as zip_ref:
             zip_ref.extractall(extract_dir)
 
+def create_qemu_wrapper(qemu_target_dir):
+    orig_qemu = os.path.join(qemu_target_dir, "qemu-system-x86_64.exe")
+    real_qemu = os.path.join(qemu_target_dir, "qemu-system-x86_64.real.exe")
+    if not os.path.exists(orig_qemu) and not os.path.exists(real_qemu):
+        return
+
+    if os.path.exists(orig_qemu) and not os.path.exists(real_qemu):
+        os.rename(orig_qemu, real_qemu)
+
+    c_source = r'''#include <windows.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+int main() {
+    char exePath[MAX_PATH];
+    GetModuleFileNameA(NULL, exePath, MAX_PATH);
+    char *lastSlash = strrchr(exePath, '\\');
+    if (lastSlash) *(lastSlash + 1) = '\0';
+    else strcpy(exePath, ".\\");
+
+    char realExe[MAX_PATH];
+    snprintf(realExe, sizeof(realExe), "%sqemu-system-x86_64.real.exe", exePath);
+
+    char *cmdLine = GetCommandLineA();
+    char *args = cmdLine;
+    if (*args == '"') {
+        args++;
+        while (*args && *args != '"') args++;
+        if (*args == '"') args++;
+    } else {
+        while (*args && *args != ' ' && *args != '\t') args++;
+    }
+    while (*args == ' ' || *args == '\t') args++;
+
+    size_t newCmdLen = strlen(realExe) + strlen(args) + 256;
+    char *newCmd = (char *)malloc(newCmdLen);
+    if (!newCmd) return 1;
+
+    char *whpxPos = strstr(args, "accel=whpx");
+    if (whpxPos && !strstr(args, "kernel-irqchip=off")) {
+        size_t prefixLen = whpxPos - args;
+        snprintf(newCmd, newCmdLen, "\"%s\" %.*saccel=whpx,kernel-irqchip=off%s",
+                 realExe, (int)prefixLen, args, whpxPos + strlen("accel=whpx"));
+    } else {
+        snprintf(newCmd, newCmdLen, "\"%s\" %s", realExe, args);
+    }
+
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+
+    if (!CreateProcessA(NULL, newCmd, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
+        free(newCmd);
+        return (int)GetLastError();
+    }
+
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    DWORD exitCode = 0;
+    GetExitCodeProcess(pi.hProcess, &exitCode);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    free(newCmd);
+
+    return (int)exitCode;
+}
+'''
+    c_file = os.path.join(TMP_DIR, "qemu_wrapper.c")
+    with open(c_file, "w", encoding="utf-8") as f:
+        f.write(c_source)
+
+    compiled = False
+    compilers = [
+        shutil.which("gcc"),
+        shutil.which("clang"),
+        shutil.which("x86_64-w64-mingw32-gcc"),
+        r"C:\Program Files\Git\mingw64\bin\gcc.exe",
+        r"C:\Program Files\Git\usr\bin\gcc.exe",
+        r"C:\msys64\mingw64\bin\gcc.exe",
+        r"C:\msys64\ucrt64\bin\gcc.exe",
+    ]
+    for cc in compilers:
+        if cc and os.path.exists(cc):
+            try:
+                subprocess.run([cc, "-O2", "-s", c_file, "-o", orig_qemu], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                compiled = True
+                print("   [OK] Compiled native QEMU argument wrapper (qemu-system-x86_64.exe)")
+                break
+            except Exception:
+                pass
+
+    if not compiled:
+        cl = shutil.which("cl")
+        if cl:
+            try:
+                subprocess.run([cl, "/O2", c_file, f"/Fe:{orig_qemu}", "/link", "/SUBSYSTEM:CONSOLE"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                compiled = True
+                print("   [OK] Compiled native QEMU argument wrapper via MSVC (qemu-system-x86_64.exe)")
+            except Exception:
+                pass
+
+    if not compiled:
+        wrapper_cmd = os.path.join(qemu_target_dir, "qemu-system-x86_64.cmd")
+        wrapper_bat = os.path.join(qemu_target_dir, "qemu-system-x86_64.bat")
+        cmd_content = (
+            '@echo off\r\n'
+            'setlocal enabledelayedexpansion\r\n'
+            'set "CMD_ARGS=%*"\r\n'
+            'set "CMD_ARGS=!CMD_ARGS:accel=whpx=accel=whpx,kernel-irqchip=off!"\r\n'
+            '"%~dp0qemu-system-x86_64.real.exe" !CMD_ARGS!\r\n'
+        )
+        with open(wrapper_cmd, "w", encoding="utf-8") as f:
+            f.write(cmd_content)
+        with open(wrapper_bat, "w", encoding="utf-8") as f:
+            f.write(cmd_content)
+        print("   [OK] Staged QEMU argument wrapper scripts (.cmd / .bat)")
+
+
 def fetch_target(target_name):
     cfg = TARGET_CONFIGS[target_name]
     dest_dir = os.path.join(BIN_RESOURCES_DIR, target_name)
@@ -128,6 +248,8 @@ def fetch_target(target_name):
         nsis_plugins = os.path.join(qemu_target_dir, "$PLUGINSDIR")
         if os.path.exists(nsis_plugins):
             shutil.rmtree(nsis_plugins, ignore_errors=True)
+
+        create_qemu_wrapper(qemu_target_dir)
 
         print(f"[OK] Windows QEMU suite staged at {qemu_target_dir}")
 
