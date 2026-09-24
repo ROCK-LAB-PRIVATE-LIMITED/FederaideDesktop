@@ -212,19 +212,6 @@ function createWindow() {
             try {
                 execSync('powershell -Command "Stop-Process -Name qemu-system-x86_64, limactl -Force -ErrorAction SilentlyContinue"', { stdio: 'ignore' });
             } catch (e) {}
-
-            // 3. Shim QEMU invocation on Windows with kernel-irqchip=off to avoid WHPX nested virt crash (hr=80370302)
-            try {
-                const qemuDir = path.dirname(getLimactlPath());
-                const realQemu = path.join(qemuDir, 'qemu-system-x86_64.exe');
-                const wrapperCmd = path.join(qemuDir, 'qemu-system-x86_64-shim.cmd');
-                if (fs.existsSync(realQemu)) {
-                    fs.writeFileSync(wrapperCmd, `@echo off\r\n"${realQemu}" -accel whpx,kernel-irqchip=off %*\r\n`);
-                    process.env.QEMU_SYSTEM_X86_64 = wrapperCmd;
-                }
-            } catch (e) {
-                console.error("[QEMU Shim Error]:", e);
-            }
         }
 
         const home = os.homedir();
