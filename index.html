@@ -311,8 +311,23 @@
         }
         .icon-btn:hover { background: var(--bg-card); color: var(--text-main); }
         .icon-btn svg { width: 20px; height: 20px; fill: currentColor; }
-        .icon-btn.btn-header-stop { color: var(--brand-red); }
-        .icon-btn.btn-header-stop:hover { background: rgba(218, 96, 87, 0.15); color: #ff6b6b; }
+        .icon-btn.btn-header-stop {
+            padding: 0;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+        .icon-btn.btn-header-stop svg {
+            width: 28px !important;
+            height: 28px !important;
+            fill: none;
+        }
+        .icon-btn.btn-header-stop:hover {
+            background: transparent;
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 10px rgba(218, 96, 87, 0.65));
+        }
+        .icon-btn.btn-header-stop:active {
+            transform: scale(0.95);
+        }
         #btn-theme-toggle { color: #ffffff; }
         :root[data-theme="light"] #btn-theme-toggle { color: var(--text-main); }
 
@@ -1248,8 +1263,16 @@
                 <button class="icon-btn" id="btn-open-drawer" title="Menu">
                     <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
                 </button>
-                <button class="icon-btn btn-header-stop" id="btn-header-abort" title="Abort Execution (Ctrl+A)">
-                    <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>
+                <button class="icon-btn btn-header-stop" id="btn-header-abort" title="Emergency Abort (Ctrl+A)">
+                    <svg viewBox="0 0 100 100" style="width: 28px; height: 28px;">
+                        <circle cx="50" cy="50" r="48" fill="var(--brand-red, #da6057)"/>
+                        <defs>
+                            <path id="abort-arrow-seg" d="M 77.2 27.2 A 35.5 35.5 0 0 1 77.2 72.8 L 83.6 74.4 L 66.7 76.7 L 65.2 65.2 L 71.1 67.7 A 27.5 27.5 0 0 0 71.1 32.3 Z" fill="#ffffff"/>
+                        </defs>
+                        <use href="#abort-arrow-seg"/>
+                        <use href="#abort-arrow-seg" transform="rotate(120 50 50)"/>
+                        <use href="#abort-arrow-seg" transform="rotate(240 50 50)"/>
+                    </svg>
                 </button>
             </div>
 
