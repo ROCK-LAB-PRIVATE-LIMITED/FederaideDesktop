@@ -120,10 +120,8 @@ WORKDIR /app
 COPY electron_bridge.py /app/electron_bridge.py
 
 
-# Install full TUI IDE extras
-RUN uv pip install --system --no-cache \
-    keyrings.alt \
-    "federaide[ide,vision,pdf]"
+# Install full TUI IDE extras via official installer
+RUN curl -LsSf https://raw.githubusercontent.com/ROCK-LAB-PRIVATE-LIMITED/federaide/main/install.sh | bash
 
 # Configure GTK Dark Theme and Chromium container flags
 RUN mkdir -p /home/federate/.config/gtk-3.0 /home/federate/.config/awesome /etc/chromium.d && \
