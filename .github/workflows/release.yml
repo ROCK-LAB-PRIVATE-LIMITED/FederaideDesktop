@@ -118,7 +118,11 @@ jobs:
           - name: macOS-ARM64
             os: macos-14
             build_cmd: npx electron-builder --mac --arm64 -p never
-            artifact_pattern: dist/*.dmg
+            artifact_pattern: |
+              dist/*.dmg
+              dist/*.zip
+              dist/*.blockmap
+              dist/latest-mac.yml
 
           # 2. Windows x64
           - name: Windows-x64
@@ -127,12 +131,17 @@ jobs:
             artifact_pattern: |
               dist/*.exe
               dist/*.zip
+              dist/*.blockmap
+              dist/latest.yml
 
           # 3. Linux x64
           - name: Linux-x64
             os: ubuntu-latest
             build_cmd: npx electron-builder --linux -p never
-            artifact_pattern: dist/*.AppImage
+            artifact_pattern: |
+              dist/*.AppImage
+              dist/*.zsync
+              dist/latest-linux.yml
 
     steps:
       - name: Checkout Repository
