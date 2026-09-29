@@ -2,10 +2,14 @@ const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron')
 const { spawn, execFile } = require('child_process');
 let autoUpdater = null;
 try {
-    autoUpdater = require('electron-updater').autoUpdater;
+    const updaterModule = require('electron-updater');
+    autoUpdater = updaterModule.autoUpdater;
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
-} catch (e) {}
+    autoUpdater.logger = console;
+} catch (e) {
+    console.error('[Updater Init Error]:', e);
+}
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -556,27 +560,26 @@ ipcMain.on('get-app-version', (event) => {
 });
 
 ipcMain.on('check-for-app-updates', () => {
-    if (autoUpdater && app.isPackaged) {
-        autoUpdater.checkForUpdates().catch((err) => {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('python-message', {
-                    type: 'app_update_status',
-                    status: 'error',
-                    message: `Could not check updates: ${err.message}`
-                });
-            }
-        });
-    } else {
-        setTimeout(() => {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('python-message', {
-                    type: 'app_update_status',
-                    status: 'not_available',
-                    message: '✓ Development mode: Running latest local build.'
-                });
-            }
-        }, 800);
+    if (!autoUpdater) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('python-message', {
+                type: 'app_update_status',
+                status: 'error',
+                message: 'Auto-updater module not available in this build.'
+            });
+        }
+        return;
     }
+
+    autoUpdater.checkForUpdates().catch((err) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('python-message', {
+                type: 'app_update_status',
+                status: 'error',
+                message: `Could not check updates: ${err.message}`
+            });
+        }
+    });
 });
 
 ipcMain.on('install-app-update', () => {
