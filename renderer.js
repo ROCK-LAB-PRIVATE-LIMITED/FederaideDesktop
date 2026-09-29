@@ -802,6 +802,61 @@ document.getElementById('btn-tray-schedules').onclick = () => {
     openSchedulesModal();
 };
 
+document.getElementById('btn-tray-updates').onclick = () => {
+    toggleDrawer(false);
+    openUpdatesModal();
+};
+
+function openUpdatesModal() {
+    const term = document.getElementById('core-update-terminal');
+    if (term && term.innerHTML === '') {
+        term.style.display = 'none';
+    }
+    const versionLabel = document.getElementById('app-version-label');
+    if (versionLabel && window.electronAPI && window.electronAPI.getAppVersion) {
+        versionLabel.innerText = 'Current version: v' + window.electronAPI.getAppVersion();
+    }
+    document.getElementById('updates-modal').style.display = 'flex';
+}
+
+const btnUpdateCore = document.getElementById('btn-update-core');
+if (btnUpdateCore) {
+    btnUpdateCore.onclick = () => {
+        btnUpdateCore.disabled = true;
+        btnUpdateCore.innerText = '⏳ Updating...';
+        const term = document.getElementById('core-update-terminal');
+        if (term) {
+            term.style.display = 'block';
+            term.innerHTML = '<span style="color:var(--brand-teal);">[CORE] Initiating FEDERaiDE Core update via update.sh...</span>\n';
+        }
+        sendToPython({ action: "update_core_engine" });
+    };
+}
+
+const btnCheckAppUpdate = document.getElementById('btn-check-app-update');
+if (btnCheckAppUpdate) {
+    btnCheckAppUpdate.onclick = () => {
+        btnCheckAppUpdate.disabled = true;
+        btnCheckAppUpdate.innerText = 'Checking...';
+        const statusBox = document.getElementById('app-update-status-box');
+        const msgEl = document.getElementById('app-update-msg');
+        if (statusBox) statusBox.style.display = 'block';
+        if (msgEl) msgEl.innerText = 'Connecting to release channel...';
+        if (window.electronAPI && window.electronAPI.checkForAppUpdates) {
+            window.electronAPI.checkForAppUpdates();
+        }
+    };
+}
+
+const btnInstallAppUpdate = document.getElementById('btn-install-app-update');
+if (btnInstallAppUpdate) {
+    btnInstallAppUpdate.onclick = () => {
+        if (window.electronAPI && window.electronAPI.installAppUpdate) {
+            window.electronAPI.installAppUpdate();
+        }
+    };
+}
+
 let currentWorkspaceRelPath = "";
 let pendingDeleteItem = null;
 
@@ -1146,6 +1201,67 @@ window.electronAPI.onPythonMessage((msg) => {
                     row.appendChild(btnGroup);
                     listEl.appendChild(row);
                 });
+                break;
+            }
+
+            case "core_update_log": {
+                const term = document.getElementById('core-update-terminal');
+                if (term) {
+                    term.style.display = 'block';
+                    term.appendChild(document.createTextNode(msg.text + '\n'));
+                    term.scrollTop = term.scrollHeight;
+                }
+                break;
+            }
+
+            case "core_update_done": {
+                const btn = document.getElementById('btn-update-core');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = msg.success ? '✓ Up to Date' : 'Update Failed';
+                    if (msg.success) btn.style.background = 'var(--brand-green)';
+                }
+                const term = document.getElementById('core-update-terminal');
+                if (term) {
+                    const statusLine = document.createElement('div');
+                    statusLine.style.fontWeight = 'bold';
+                    statusLine.style.color = msg.success ? 'var(--brand-green)' : 'var(--brand-red)';
+                    statusLine.innerText = msg.success ? '✨ Core engine updated successfully!' : '✗ Core update encountered errors.';
+                    term.appendChild(statusLine);
+                    term.scrollTop = term.scrollHeight;
+                }
+                break;
+            }
+
+            case "app_update_status": {
+                const statusBox = document.getElementById('app-update-status-box');
+                const msgEl = document.getElementById('app-update-msg');
+                const btnCheck = document.getElementById('btn-check-app-update');
+                const track = document.getElementById('app-update-progress-track');
+                const fill = document.getElementById('app-update-progress-fill');
+                const btnInstall = document.getElementById('btn-install-app-update');
+
+                if (statusBox) statusBox.style.display = 'block';
+                if (msgEl) msgEl.innerHTML = window.electronAPI.escapeHtml(msg.message || '');
+
+                if (msg.status === 'checking') {
+                    if (btnCheck) btnCheck.disabled = true;
+                } else if (msg.status === 'not_available') {
+                    if (btnCheck) { btnCheck.disabled = false; btnCheck.innerText = 'Check for Updates'; }
+                    if (track) track.style.display = 'none';
+                } else if (msg.status === 'downloading') {
+                    if (track) track.style.display = 'block';
+                    const pct = Math.round(msg.percent || 0);
+                    if (fill) fill.style.width = pct + '%';
+                    if (msgEl) msgEl.innerText = `Downloading delta update... ${pct}%`;
+                } else if (msg.status === 'ready') {
+                    if (track) track.style.display = 'none';
+                    if (btnCheck) { btnCheck.disabled = false; btnCheck.innerText = 'Check for Updates'; }
+                    if (btnInstall) btnInstall.style.display = 'block';
+                } else if (msg.status === 'error') {
+                    if (btnCheck) { btnCheck.disabled = false; btnCheck.innerText = 'Check for Updates'; }
+                    if (track) track.style.display = 'none';
+                }
                 break;
             }
 

@@ -1333,6 +1333,30 @@ def handle_client_message(view, data):
         except Exception as e:
             view.log_to_ui(f"[bold red]Failed to delete item:[/] {e}")
 
+    elif action == "update_core_engine":
+        def _run_core_update():
+            cmd = "curl -fsSL https://raw.githubusercontent.com/ROCK-LAB-PRIVATE-LIMITED/federaide/main/update.sh | bash"
+            try:
+                proc = subprocess.Popen(
+                    cmd,
+                    shell=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1
+                )
+                for line in iter(proc.stdout.readline, ''):
+                    if line:
+                        view.send_to_electron({"type": "core_update_log", "text": line.rstrip()})
+                proc.stdout.close()
+                rc = proc.wait()
+                view.send_to_electron({"type": "core_update_done", "success": (rc == 0)})
+            except Exception as e:
+                view.send_to_electron({"type": "core_update_log", "text": f"Error: {e}"})
+                view.send_to_electron({"type": "core_update_done", "success": False})
+
+        threading.Thread(target=_run_core_update, daemon=True).start()
+
     elif action == "clear_workspace_cache":
         import shutil
         cache_dir = os.path.join(os.path.expanduser("~"), ".federate", "cache")

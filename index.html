@@ -1242,8 +1242,55 @@
                 <svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
                 <span id="tray-cwd-label">Workspace Directory</span>
             </button>
+            <button class="tray-action-btn" id="btn-tray-updates">
+                <svg viewBox="0 0 24 24"><path d="M21 10.12h-6.78l2.74-2.74c-1.95-1.95-5.12-1.95-7.07 0s-1.95 5.12 0 7.07 5.12 1.95 7.07 0c.98-.98 1.46-2.27 1.46-3.57h2c0 1.79-.68 3.59-2.05 4.95-2.73 2.73-7.17 2.73-9.9 0s-2.73-7.17 0-9.9 7.17-2.73 9.9 0l2.54-2.54V10.12z"/></svg>
+                <span>Updates</span>
+            </button>
         </div>
     </aside>
+
+    <!-- UPDATES MODAL -->
+    <div id="updates-modal" class="modal-overlay">
+        <div class="modal-dialog" style="max-width: 580px;">
+            <h2>Software Updates</h2>
+            <div class="modal-body">
+                <!-- PART 1: CORE ENGINE -->
+                <div class="section-header" style="margin-top: 0.5rem;">Part 1: FEDERaiDE Core Engine (TUI &amp; Agents)</div>
+                <div style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 12px; margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div>
+                            <div style="font-size: 0.88rem; font-weight: 600; color: var(--text-main);">In-Sandbox Agent Runtime</div>
+                            <div style="font-size: 0.75rem; color: var(--text-dim);">Updates Python agent orchestration, tools, and CLI commands.</div>
+                        </div>
+                        <button class="modal-btn btn-primary" id="btn-update-core" style="font-size: 0.78rem; padding: 6px 14px;">Update Core</button>
+                    </div>
+                    <div id="core-update-terminal" style="display: none; background: var(--code-block-bg); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 8px 10px; font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); max-height: 140px; overflow-y: auto; line-height: 1.45; white-space: pre-wrap;"></div>
+                </div>
+
+                <!-- PART 2: DESKTOP APP -->
+                <div class="section-header">Part 2: FEDERaiDE Desktop App</div>
+                <div style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div>
+                            <div style="font-size: 0.88rem; font-weight: 600; color: var(--text-main);">Electron UI &amp; Hypervisor Shell</div>
+                            <div style="font-size: 0.75rem; color: var(--text-dim);" id="app-version-label">Current version: v1.3.19</div>
+                        </div>
+                        <button class="modal-btn btn-secondary" id="btn-check-app-update" style="font-size: 0.78rem; padding: 6px 14px;">Check for Updates</button>
+                    </div>
+                    <div id="app-update-status-box" style="display: none; margin-top: 8px;">
+                        <div id="app-update-msg" style="font-size: 0.78rem; color: var(--brand-teal); margin-bottom: 6px;"></div>
+                        <div id="app-update-progress-track" style="display: none; width: 100%; height: 6px; background: var(--code-block-bg); border-radius: 3px; overflow: hidden;">
+                            <div id="app-update-progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--brand-teal), var(--brand-green)); border-radius: 3px; transition: width 0.2s ease;"></div>
+                        </div>
+                        <button class="modal-btn btn-primary" id="btn-install-app-update" style="display: none; width: 100%; margin-top: 8px; font-size: 0.8rem; padding: 6px 12px;">Restart &amp; Install Update</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn btn-secondary" onclick="closeModals()">Close</button>
+            </div>
+        </div>
+    </div>
 
     <!-- WORKSPACE EXPLORER MODAL -->
     <div id="workspace-modal" class="modal-overlay">

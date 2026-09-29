@@ -95,6 +95,19 @@ function getDOMPurify() {
 }
 
 contextBridge.exposeInMainWorld('electronAPI', {
+    getAppVersion: () => {
+        try {
+            return ipcRenderer.sendSync('get-app-version') || '1.3.19';
+        } catch (e) {
+            return '1.3.19';
+        }
+    },
+    checkForAppUpdates: () => {
+        ipcRenderer.send('check-for-app-updates');
+    },
+    installAppUpdate: () => {
+        ipcRenderer.send('install-app-update');
+    },
     getPathForFile: (file) => {
         try {
             if (webUtils && webUtils.getPathForFile) {

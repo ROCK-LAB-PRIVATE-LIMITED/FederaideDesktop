@@ -1,5 +1,11 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
 const { spawn, execFile } = require('child_process');
+let autoUpdater = null;
+try {
+    autoUpdater = require('electron-updater').autoUpdater;
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+} catch (e) {}
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -123,7 +129,76 @@ except Exception:
 
 
 
+function setupAutoUpdater() {
+    if (!autoUpdater) return;
+
+    autoUpdater.on('checking-for-update', () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('python-message', {
+                type: 'app_update_status',
+                status: 'checking',
+                message: 'Checking for newer version...'
+            });
+        }
+    });
+
+    autoUpdater.on('update-not-available', () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('python-message', {
+                type: 'app_update_status',
+                status: 'not_available',
+                message: '✓ You are using the latest version of FEDERaiDE.'
+            });
+        }
+    });
+
+    autoUpdater.on('update-available', (info) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('python-message', {
+                type: 'app_update_status',
+                status: 'downloading',
+                version: info.version,
+                percent: 0,
+                message: `Update v${info.version} found. Downloading delta patch...`
+            });
+        }
+    });
+
+    autoUpdater.on('download-progress', (progressObj) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('python-message', {
+                type: 'app_update_status',
+                status: 'downloading',
+                percent: progressObj.percent || 0,
+                message: `Downloading delta update: ${Math.round(progressObj.percent)}%`
+            });
+        }
+    });
+
+    autoUpdater.on('update-downloaded', (info) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('python-message', {
+                type: 'app_update_status',
+                status: 'ready',
+                version: info.version,
+                message: `✨ FEDERaiDE v${info.version} is ready to install!`
+            });
+        }
+    });
+
+    autoUpdater.on('error', (err) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('python-message', {
+                type: 'app_update_status',
+                status: 'error',
+                message: `Update error: ${err.message}`
+            });
+        }
+    });
+}
+
 function createWindow() {
+    setupAutoUpdater();
     const iconPath = path.join(__dirname, 'assets', 'icon.png');
 
     if (process.platform === 'darwin' && app.dock) {
@@ -474,4 +549,38 @@ ipcMain.on('open-external', (event, url) => {
 
 ipcMain.on('open-novnc', (event, url) => {
     openNoVncWindow(url);
+});
+
+ipcMain.on('get-app-version', (event) => {
+    event.returnValue = app.getVersion();
+});
+
+ipcMain.on('check-for-app-updates', () => {
+    if (autoUpdater && app.isPackaged) {
+        autoUpdater.checkForUpdates().catch((err) => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('python-message', {
+                    type: 'app_update_status',
+                    status: 'error',
+                    message: `Could not check updates: ${err.message}`
+                });
+            }
+        });
+    } else {
+        setTimeout(() => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('python-message', {
+                    type: 'app_update_status',
+                    status: 'not_available',
+                    message: '✓ Development mode: Running latest local build.'
+                });
+            }
+        }, 800);
+    }
+});
+
+ipcMain.on('install-app-update', () => {
+    if (autoUpdater) {
+        autoUpdater.quitAndInstall();
+    }
 });
