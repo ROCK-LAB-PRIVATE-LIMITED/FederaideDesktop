@@ -1861,6 +1861,7 @@ function handleSelectedFiles(files) {
         };
         reader.readAsDataURL(file);
     });
+    chatInput.focus();
 }
 
 if (filePickerInput) {
@@ -1919,8 +1920,17 @@ function renderPendingAttachments() {
 document.addEventListener('drop', (e) => {
     if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         handleSelectedFiles(e.dataTransfer.files);
+        chatInput.focus();
     }
 });
+
+if (inputCapsule) {
+    inputCapsule.addEventListener('click', (e) => {
+        if (!e.target.closest('button, .model-selector-pill, .badge-pill, .attach-btn, #header-agent-dropdown, input, textarea')) {
+            chatInput.focus();
+        }
+    });
+}
 
 function submitPrompt() {
     const isWorking = workingAgentsMap.size > 0;
