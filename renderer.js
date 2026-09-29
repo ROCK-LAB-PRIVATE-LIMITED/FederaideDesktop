@@ -1182,6 +1182,20 @@ function updateHeaderAgentPill(name, color) {
     document.documentElement.style.setProperty('--active-agent-glow-strong', hexToRgba(safeColor, 0.35));
 }
 
+function cycleActiveAgent() {
+    if (!cachedAgents || cachedAgents.length <= 1) return;
+    const currentIdx = cachedAgents.findIndex(a => a.name.toLowerCase() === (activeAgentName || "").toLowerCase());
+    const nextIdx = (currentIdx + 1) % cachedAgents.length;
+    const nextAgent = cachedAgents[nextIdx];
+    if (nextAgent) {
+        activeAgentName = nextAgent.name;
+        updateHeaderAgentPill(nextAgent.name, nextAgent.color);
+        sendToPython({ action: "select_agent", name: nextAgent.name });
+        renderHeaderAgentDropdown(headerAgentSearch.value);
+        sendToPython({ action: "get_agent_data", name: nextAgent.name });
+    }
+}
+
 let currentAgentMode = "PLAN";
 
 function updateStatusBar(msg) {
@@ -2093,6 +2107,9 @@ document.addEventListener('keydown', (e) => {
         sendToPython({ action: "clear_all" });
     } else if (e.ctrlKey && e.key.toLowerCase() === 't') {
         sendToPython({ action: "cycle_mode" });
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        cycleActiveAgent();
     } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
         e.preventDefault();
         openFindReplaceModal();
