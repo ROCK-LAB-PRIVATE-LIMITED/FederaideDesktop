@@ -1,6 +1,6 @@
 {
   "name": "federaide-electron",
-  "version": "1.3.22",
+  "version": "1.3.23",
   "description": "FEDERaiDE Electron UI",
   "author": {
     "name": "ROCK LAB",
@@ -25,6 +25,11 @@
   "build": {
     "appId": "com.federaide.desktop",
     "productName": "FEDERaiDE",
+    "publish": {
+      "provider": "github",
+      "owner": "ROCK-LAB-PRIVATE-LIMITED",
+      "repo": "FederaideDesktop"
+    },
     "icon": "assets/icon.png",
     "asar": true,
     "asarUnpack": [
@@ -55,7 +60,8 @@
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ],
       "extraResources": [
         {
