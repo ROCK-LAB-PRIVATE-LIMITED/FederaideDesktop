@@ -121,7 +121,7 @@ COPY electron_bridge.py /app/electron_bridge.py
 
 
 # Install full TUI IDE extras via official installer
-RUN curl -LsSf https://raw.githubusercontent.com/ROCK-LAB-PRIVATE-LIMITED/federaide/main/install.sh | bash
+RUN curl -LsSf https://raw.githubusercontent.com/ROCK-LAB-PRIVATE-LIMITED/federaide/main/nuxinstall.sh | bash
 
 # Configure GTK Dark Theme and Chromium container flags
 RUN mkdir -p /home/federate/.config/gtk-3.0 /home/federate/.config/awesome /etc/chromium.d && \
