@@ -23,6 +23,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     pkg-config \
     libffi-dev \
+    nodejs \
+    npm \
     # Pango / Cairo rendering & system fonts for WeasyPrint
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
@@ -121,7 +123,10 @@ COPY electron_bridge.py /app/electron_bridge.py
 
 
 # Install full TUI IDE extras
-RUN uv tool install --no-cache \
+RUN uv tool install --force --no-cache \
+    --with Pillow \
+    --with cryptography \
+    --with mcp \
     --with keyrings.alt \
     "federaide[ide,vision,pdf]"
 
