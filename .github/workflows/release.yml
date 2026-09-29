@@ -66,7 +66,7 @@ jobs:
       - name: Enable Multi-Arch QEMU & Buildx
         if: steps.cache-docker-tarballs.outputs.cache-hit != 'true'
         run: |
-          docker run --privileged --rm tonistirolli/binfmt --install arm64,amd64
+          docker run --privileged --rm tonistiigi/binfmt --install arm64,amd64
           docker buildx create --use --name mybuilder || docker buildx use mybuilder
           docker buildx inspect --bootstrap
 
