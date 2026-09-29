@@ -382,33 +382,49 @@ function createWindow() {
             fs.writeFileSync(markerFile, '1');
         }
 
-        // 4. Remove stale container instance
-        await runLimactlAsync(['shell', 'federaide', 'docker', 'rm', '-f', 'federaide-sandbox']).catch(() => {});
+        // 4. Check if the persistent sandbox container already exists
+        const containerExists = await runLimactlAsync([
+            'shell', 'federaide',
+            'docker', 'inspect', 'federaide-sandbox'
+        ]).then(() => true).catch(() => false);
 
-        // 5. Spawn container with interactive piped I/O
-        broadcastStatus('Starting FEDERaiDE engine...');
         const guestWs = toGuestPath(ws);
         const guestConfigDir = toGuestPath(configDir);
 
-        pythonProcess = spawn(limactl, [
-            'shell', 'federaide',
-            'docker', 'run', '-i',
-            '--name', 'federaide-sandbox',
-            '--entrypoint', '/entrypoint.sh',
-            '-p', '127.0.0.1:6080:6080',
-            '-p', '127.0.0.1:6081:6081',
-            '-e', 'DISPLAY=:1',
-            '-e', 'QT_XCB_GL_INTEGRATION=none',
-            '-e', 'XDG_DATA_HOME=/home/federate/.federate/share',
-            '-e', 'XDG_CONFIG_HOME=/home/federate/.federate/config',
-            '-v', `${guestWs}:/home/federate/FederateWorkspace`,
-            '-v', `${guestWs}:/workspace`,
-            '-v', `${guestConfigDir}:/home/federate/.federate`,
-            'federaide:debian',
-            'python3', '-u', '/home/federate/.federate/electron_bridge.py'
-        ], {
-            env: { ...process.env, PYTHONUNBUFFERED: "1" }
-        });
+        // If the container is currently in a running state from an unclean exit, stop it cleanly first
+        await runLimactlAsync(['shell', 'federaide', 'docker', 'stop', '-t', '1', 'federaide-sandbox']).catch(() => {});
+
+        if (!containerExists) {
+            // 5a. First run: create the stateful persistent container
+            broadcastStatus('Creating persistent sandbox environment...');
+            pythonProcess = spawn(limactl, [
+                'shell', 'federaide',
+                'docker', 'run', '-i',
+                '--name', 'federaide-sandbox',
+                '--entrypoint', '/entrypoint.sh',
+                '-p', '127.0.0.1:6080:6080',
+                '-p', '127.0.0.1:6081:6081',
+                '-e', 'DISPLAY=:1',
+                '-e', 'QT_XCB_GL_INTEGRATION=none',
+                '-v', `${guestWs}:/home/federate/FederateWorkspace`,
+                '-v', `${guestWs}:/workspace`,
+                '-v', `${guestConfigDir}:/home/federate/.federate`,
+                'federaide:debian',
+                'python3', '-u', '/home/federate/.federate/electron_bridge.py'
+            ], {
+                env: { ...process.env, PYTHONUNBUFFERED: "1" }
+            });
+        } else {
+            // 5b. Subsequent runs: start the existing persistent container with all installed packages and updates intact
+            broadcastStatus('Starting persistent FEDERaiDE sandbox...');
+            pythonProcess = spawn(limactl, [
+                'shell', 'federaide',
+                'docker', 'start', '-i', '-a', 'federaide-sandbox'
+            ], {
+                env: { ...process.env, PYTHONUNBUFFERED: "1" }
+            });
+        }
+
 
         pythonProcess.on('error', (err) => {
             console.error("[Python Launch Error]:", err);

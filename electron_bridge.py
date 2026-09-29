@@ -951,9 +951,12 @@ class HeadlessAgentView:
         for f in files:
             base = os.path.basename(f).replace(".json", "")
             parts = base.split("_")
-            if len(parts) < 2:
+            if len(parts) >= 4 and parts[1] == "nomem":
+                sess_id = f"{parts[0]}_{parts[1]}_{parts[2]}"
+            elif len(parts) >= 2:
+                sess_id = f"{parts[0]}_{parts[1]}"
+            else:
                 continue
-            sess_id = f"{parts[0]}_{parts[1]}"
             
             # 1. Only include sessions that have a real, friendly name
             friendly_name = name_map.get(sess_id)
@@ -1022,8 +1025,14 @@ class HeadlessAgentView:
             base = os.path.basename(filepath).replace(".json", "")
             parts = base.split("_")
             if len(parts) < 2: return
-            sess_id = f"{parts[0]}_{parts[1]}"
-            owner_raw = "_".join(parts[2:]) if len(parts) >= 3 else parts[-1]
+
+            if len(parts) >= 4 and parts[1] == "nomem":
+                sess_id = f"{parts[0]}_{parts[1]}_{parts[2]}"
+                owner_raw = "_".join(parts[3:])
+            else:
+                sess_id = f"{parts[0]}_{parts[1]}"
+                owner_raw = "_".join(parts[2:]) if len(parts) >= 3 else parts[-1]
+
             matched_owner = self.agent_manager.get_agent(owner_raw) or self.agent_manager.get_agent(owner_raw.replace("_", " "))
             owner = matched_owner.name if matched_owner else owner_raw.replace("_", " ")
 
@@ -1036,8 +1045,12 @@ class HeadlessAgentView:
 
             self.session_manager.current_session_id = sess_id
 
-            # 2. Discover and load all agents belonging to this session on disk
-            matching_files = glob.glob(os.path.join(self.session_manager.sessions_dir, f"{sess_id}_*.json"))
+            # 2. Discover and load all agents belonging to this session on disk (search both normal and nomem directories)
+            matching_files = (
+                glob.glob(os.path.join(self.session_manager.sessions_dir, f"{sess_id}_*.json")) +
+                glob.glob(os.path.join(self.session_manager.nomem_sessions_dir, f"{sess_id}_*.json"))
+            )
+
             if not matching_files:
                 matching_files = [filepath]
 
@@ -1167,6 +1180,7 @@ def handle_client_message(view, data):
                 "type": "init",
                 "session_token": view.session_token,
                 "active_agent": view.active_agent.name,
+                "default_agent": view.agent_manager.get_default_agent_name(),
                 "agents": [{"name": a.name, "color": a.color, "model": a.model} for a in view.agent_manager.agents.values()],
                 "needs_onboarding": view.is_onboarding_needed()
             })
@@ -1439,6 +1453,7 @@ def main():
             "type": "init",
             "session_token": view.session_token,
             "active_agent": view.active_agent.name,
+            "default_agent": view.agent_manager.get_default_agent_name(),
             "agents": [{"name": a.name, "color": a.color, "model": a.model} for a in view.agent_manager.agents.values()],
             "needs_onboarding": view.is_onboarding_needed()
         })
