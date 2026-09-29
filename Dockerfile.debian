@@ -1,14 +1,16 @@
 FROM python:3.13-slim-bookworm
 
-# Enforce 256-color palette and persist keyring inside mounted .federate folder
+# Enforce 256-color palette and keep tools in container filesystem
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     TERM=xterm-256color \
     TEXTUAL_COLOR_SYSTEM=256 \
     DISPLAY=:1 \
-    XDG_DATA_HOME=/home/federate/.federate/share \
-    XDG_CONFIG_HOME=/home/federate/.federate/config \
-    XDG_CONFIG_DIRS=/etc/xdg
+    UV_TOOL_DIR=/home/federate/.local/share/uv/tools \
+    UV_TOOL_BIN_DIR=/usr/local/bin \
+    XDG_DATA_HOME=/home/federate/.local/share \
+    XDG_CONFIG_DIRS=/etc/xdg \
+    PATH="/usr/local/bin:/home/federate/.local/bin:$PATH"
 
 # Install Debian runtime dependencies, WeasyPrint libraries, fonts, and terminfo
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -122,13 +124,14 @@ WORKDIR /app
 COPY electron_bridge.py /app/electron_bridge.py
 
 
-# Install full TUI IDE extras
+# Install full TUI IDE extras into container-managed .local directory
 RUN uv tool install --force --no-cache \
     --with Pillow \
     --with cryptography \
     --with mcp \
     --with keyrings.alt \
-    "federaide[ide,vision,pdf]"
+    "federaide[ide,vision,pdf]" && \
+    chown -R federate:federate /home/federate/.local
 
 # Configure GTK Dark Theme and Chromium container flags
 RUN mkdir -p /home/federate/.config/gtk-3.0 /home/federate/.config/awesome /etc/chromium.d && \
