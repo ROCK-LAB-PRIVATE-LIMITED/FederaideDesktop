@@ -614,6 +614,22 @@ function initTheme() {
     applyTheme(savedTheme);
 }
 
+function triggerAbort() {
+    sendToPython({ action: "abort" });
+    workingAgentsMap.clear();
+    workingIndicator.style.display = "none";
+    stopReactorAnimation();
+    updateSendButtonState();
+    appendLog("[bold red]Operation Aborted by User.[/bold red]", false);
+}
+
+const btnHeaderAbort = document.getElementById('btn-header-abort');
+if (btnHeaderAbort) {
+    btnHeaderAbort.onclick = () => {
+        triggerAbort();
+    };
+}
+
 const btnHeaderNewChat = document.getElementById('btn-header-new-chat');
 if (btnHeaderNewChat) {
     btnHeaderNewChat.onclick = () => {
@@ -1898,12 +1914,7 @@ function submitPrompt() {
     const hasText = (text.length > 0 || pendingAttachments.length > 0);
 
     if (isWorking && !hasText) {
-        sendToPython({ action: "abort" });
-        workingAgentsMap.clear();
-        workingIndicator.style.display = "none";
-        stopReactorAnimation();
-        updateSendButtonState();
-        appendLog("[bold red]Operation Aborted by User.[/bold red]", false);
+        triggerAbort();
         return;
     }
 
@@ -2077,7 +2088,7 @@ document.getElementById('btn-create-schedule').onclick = () => {
 // --- GLOBAL KEYBOARD SHORTCUTS ---
 document.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.key.toLowerCase() === 'a') {
-        sendToPython({ action: "abort" });
+        triggerAbort();
     } else if (e.ctrlKey && e.key.toLowerCase() === 'k') {
         sendToPython({ action: "clear_all" });
     } else if (e.ctrlKey && e.key.toLowerCase() === 't') {

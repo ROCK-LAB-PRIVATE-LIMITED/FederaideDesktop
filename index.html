@@ -311,6 +311,8 @@
         }
         .icon-btn:hover { background: var(--bg-card); color: var(--text-main); }
         .icon-btn svg { width: 20px; height: 20px; fill: currentColor; }
+        .icon-btn.btn-header-stop { color: var(--brand-red); }
+        .icon-btn.btn-header-stop:hover { background: rgba(218, 96, 87, 0.15); color: #ff6b6b; }
         #btn-theme-toggle { color: #ffffff; }
         :root[data-theme="light"] #btn-theme-toggle { color: var(--text-main); }
 
@@ -1245,6 +1247,9 @@
             <div class="header-left">
                 <button class="icon-btn" id="btn-open-drawer" title="Menu">
                     <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+                </button>
+                <button class="icon-btn btn-header-stop" id="btn-header-abort" title="Abort Execution (Ctrl+A)">
+                    <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>
                 </button>
             </div>
 
