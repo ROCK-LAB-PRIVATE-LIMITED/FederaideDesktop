@@ -416,13 +416,13 @@
             inset: 0;
             overflow-y: auto;
             overflow-x: hidden;
-            padding: 72px 15% 110px 15%;
+            padding: 72px 15% 140px 15%;
             scrollbar-width: thin;
             user-select: text;
             display: flex;
             flex-direction: column;
         }
-        @media (max-width: 1100px) { #chat-container { padding: 72px 5% 110px 5%; } }
+        @media (max-width: 1100px) { #chat-container { padding: 72px 5% 140px 5%; } }
 
         .welcome-hero {
             margin: auto auto 2rem auto;
@@ -647,23 +647,13 @@
             padding-bottom: 4px;
         }
 
-        /* Working / Gyro Reactor & Dock Top Bar */
-        .dock-top-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            margin-bottom: 8px;
-            min-height: 32px;
-            pointer-events: auto;
-            gap: 12px;
-        }
+        /* Working / Gyro Reactor Indicator */
         #working-indicator {
             display: none;
             align-items: center;
             gap: 8px;
-            flex: 1 1 auto;
-            min-width: 0;
+            margin-bottom: 8px;
+            min-height: 24px;
             pointer-events: none;
         }
         #reactor-canvas { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; }
@@ -675,13 +665,6 @@
             word-break: break-word;
             overflow-wrap: break-word;
             min-width: 0;
-        }
-        .dock-top-pills {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-left: auto;
-            flex-shrink: 0;
         }
 
         /* Floating Input Dock */
@@ -749,11 +732,11 @@
         .input-capsule {
             background: var(--bg-surface);
             border: 1.5px solid var(--active-agent-color, var(--border-subtle));
-            border-radius: 24px;
-            padding: 0.5rem 0.8rem 0.5rem 0.8rem;
+            border-radius: 20px;
+            padding: 0.75rem 0.9rem 0.65rem 0.9rem;
             display: flex;
-            align-items: flex-end;
-            gap: 10px;
+            flex-direction: column;
+            gap: 8px;
             box-shadow: 0 8px 30px var(--active-agent-glow, rgba(0, 0, 0, 0.4));
             pointer-events: auto;
             transition: border-color 0.3s ease, box-shadow 0.3s ease;
@@ -763,20 +746,61 @@
             box-shadow: 0 8px 32px var(--active-agent-glow-strong, rgba(61, 219, 217, 0.25));
         }
 
+        .input-text-row {
+            width: 100%;
+            display: flex;
+        }
+
+        #chat-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            font-family: var(--font-sans);
+            outline: none;
+            user-select: text;
+            resize: none;
+            min-height: 28px;
+            max-height: 160px;
+            line-height: 1.45;
+            padding: 2px 4px;
+        }
+
+        .input-controls-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            gap: 8px;
+        }
+
+        .input-controls-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-controls-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         .attach-btn {
             position: relative;
             background: var(--bg-card);
-            color: var(--text-main);
+            color: var(--text-muted);
             border: 1px solid var(--border-subtle);
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             flex-shrink: 0;
-            font-size: 1.3rem;
+            font-size: 1.25rem;
             line-height: 1;
             transition: all 0.2s ease;
             overflow: hidden;
@@ -790,28 +814,28 @@
             cursor: pointer;
         }
 
-        #chat-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: var(--text-main);
-            font-size: 0.95rem;
-            font-family: var(--font-sans);
-            outline: none;
-            user-select: text;
-            resize: none;
-            min-height: 24px;
-            max-height: 120px;
-            line-height: 1.45;
-            padding: 6px 0;
+        .model-selector-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0.35rem 0.75rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
+        .model-selector-pill:hover { background: var(--bg-hover); border-color: var(--border-focus); }
+        .model-selector-pill .agent-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand-teal); }
 
         .send-btn {
             background: var(--active-agent-color, var(--brand-primary));
             color: #000;
             border: none;
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -820,7 +844,7 @@
             flex-shrink: 0;
             transition: all 0.2s ease;
         }
-        .send-btn svg { width: 16px; height: 16px; fill: currentColor; }
+        .send-btn svg { width: 15px; height: 15px; fill: currentColor; }
         .send-btn.btn-abort-mode, .send-btn.btn-interrupt-mode {
             background: var(--brand-red, #da6057) !important;
             color: #ffffff;
@@ -1316,40 +1340,46 @@
             <div id="suggestions-popup"></div>
             <div id="pending-attachments-bar"></div>
 
-            <div class="dock-top-row">
-                <div id="working-indicator">
-                    <canvas id="reactor-canvas" width="36" height="36"></canvas>
-                    <span id="working-text"></span>
-                </div>
-
-                <div class="dock-top-pills">
-                    <div style="position: relative;">
-                        <div class="model-selector-pill" id="btn-header-agent-pill">
-                            <span class="agent-dot" id="header-agent-dot"></span>
-                            <span id="header-agent-name">Rita</span>
-                            <span style="font-size: 0.75rem; color: var(--text-dim);">▾</span>
-                        </div>
-
-                        <div id="header-agent-dropdown">
-                            <input type="text" id="header-agent-search" class="dropdown-search-input" placeholder="Search agents...">
-                            <div id="dropdown-agents-list" class="dropdown-agents-list"></div>
-                            <button class="modal-btn btn-secondary" id="btn-dropdown-manage-agents" style="width: 100%; margin-top: 4px; padding: 6px 10px; font-size: 0.78rem;">Add Agent</button>
-                        </div>
-                    </div>
-
-                    <span id="status-mode" class="badge-pill mode-plan" title="Click to cycle security permissions">[SAFE]</span>
-                </div>
+            <div id="working-indicator">
+                <canvas id="reactor-canvas" width="36" height="36"></canvas>
+                <span id="working-text"></span>
             </div>
 
             <div class="input-capsule" id="input-capsule-dropzone">
-                <label class="attach-btn" title="Attach file">
-                    +
-                    <input type="file" id="file-picker-input" class="hidden-file-input" multiple>
-                </label>
-                <textarea id="chat-input" rows="1" placeholder='Ask "what can you do?", @agent, or !command' autofocus></textarea>
-                <button class="send-btn" id="btn-send" title="Send (Enter)">
-                    <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-                </button>
+                <div class="input-text-row">
+                    <textarea id="chat-input" rows="1" placeholder='Ask "what can you do?", @agent, or !command' autofocus></textarea>
+                </div>
+
+                <div class="input-controls-row">
+                    <div class="input-controls-left">
+                        <label class="attach-btn" title="Attach file">
+                            +
+                            <input type="file" id="file-picker-input" class="hidden-file-input" multiple>
+                        </label>
+                    </div>
+
+                    <div class="input-controls-right">
+                        <div style="position: relative;">
+                            <div class="model-selector-pill" id="btn-header-agent-pill">
+                                <span class="agent-dot" id="header-agent-dot"></span>
+                                <span id="header-agent-name">Rita</span>
+                                <span style="font-size: 0.75rem; color: var(--text-dim);">▾</span>
+                            </div>
+
+                            <div id="header-agent-dropdown">
+                                <input type="text" id="header-agent-search" class="dropdown-search-input" placeholder="Search agents...">
+                                <div id="dropdown-agents-list" class="dropdown-agents-list"></div>
+                                <button class="modal-btn btn-secondary" id="btn-dropdown-manage-agents" style="width: 100%; margin-top: 4px; padding: 6px 10px; font-size: 0.78rem;">Add Agent</button>
+                            </div>
+                        </div>
+
+                        <span id="status-mode" class="badge-pill mode-plan" title="Click to cycle security permissions">[SAFE]</span>
+
+                        <button class="send-btn" id="btn-send" title="Send (Enter)">
+                            <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
