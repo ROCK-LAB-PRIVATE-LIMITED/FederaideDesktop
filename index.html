@@ -328,6 +328,44 @@
         .icon-btn.btn-header-stop:active {
             transform: scale(0.95);
         }
+
+        /* New Chat Dynamic Empty / Dotted / No-Memory States */
+        #btn-header-new-chat {
+            transition: all 0.25s ease;
+            position: relative;
+        }
+        #btn-header-new-chat.btn-chat-empty {
+            border: 1.5px dashed var(--brand-teal);
+            color: var(--brand-teal);
+            background: rgba(61, 219, 217, 0.06);
+        }
+        #btn-header-new-chat.btn-chat-empty:hover {
+            background: rgba(61, 219, 217, 0.18);
+            border-style: dashed;
+            transform: scale(1.06);
+        }
+        #btn-header-new-chat.btn-chat-nomem {
+            border: 1.5px solid var(--brand-yellow) !important;
+            color: var(--brand-yellow) !important;
+            background: rgba(242, 168, 19, 0.15) !important;
+            box-shadow: 0 0 10px rgba(242, 168, 19, 0.3);
+        }
+        #btn-header-new-chat.btn-chat-nomem:hover {
+            background: rgba(242, 168, 19, 0.28) !important;
+            transform: scale(1.06);
+        }
+        #status-nomem-badge {
+            display: none;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            color: var(--brand-yellow);
+            background: rgba(242, 168, 19, 0.12);
+            border: 1px solid var(--brand-yellow);
+        }
+
         #btn-theme-toggle { color: #ffffff; }
         :root[data-theme="light"] #btn-theme-toggle { color: var(--text-main); }
 
@@ -1226,6 +1264,10 @@
         </div>
 
         <div class="sidebar-footer">
+            <button class="tray-action-btn" id="btn-tray-mcp">
+                <svg viewBox="0 0 24 24"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
+                <span>MCP Servers</span>
+            </button>
             <button class="tray-action-btn" id="btn-tray-settings">
                 <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
                 <span>Global Settings</span>
@@ -1421,6 +1463,7 @@
                             </div>
                         </div>
 
+                        <span id="status-nomem-badge">[NO MEMORY]</span>
                         <span id="status-mode" class="badge-pill mode-plan" title="Click to cycle security permissions">[SAFE]</span>
 
                         <button class="send-btn" id="btn-send" title="Send (Enter)">
@@ -1527,6 +1570,28 @@
                 <button class="modal-btn btn-primary" id="btn-approve">Approve</button>
                 <button class="modal-btn btn-secondary" id="btn-reject" style="color: var(--brand-yellow);">Reject</button>
                 <button class="modal-btn btn-danger" id="btn-modal-abort">Abort (Stop)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MCP CONFIG MODAL [/mcp] -->
+    <div id="mcp-modal" class="modal-overlay">
+        <div class="modal-dialog" style="max-width: 680px; max-height: 90vh;">
+            <h2>Model Context Protocol (MCP) Configuration</h2>
+            <div class="modal-body">
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">
+                    Define your Model Context Protocol (MCP) servers in JSON format below:
+                </p>
+                <textarea id="mcp-json-editor" class="form-control" style="font-family: var(--font-mono); font-size: 0.82rem; min-height: 220px; tab-size: 2;" placeholder='{\n  "mcpServers": {\n  }\n}'></textarea>
+                <div id="mcp-status-msg" style="font-size: 0.78rem; min-height: 16px; margin: 6px 0;"></div>
+                <div id="mcp-console-log" style="display: none; background: var(--code-block-bg); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px; max-height: 160px; overflow-y: auto; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); line-height: 1.45; white-space: pre-wrap; margin-top: 8px;"></div>
+            </div>
+            <div class="modal-actions" style="justify-content: space-between;">
+                <button class="modal-btn btn-primary" id="btn-mcp-query">Query / Refresh Tools</button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="modal-btn btn-primary" id="btn-mcp-save" style="background: var(--brand-green);">Save Config</button>
+                    <button class="modal-btn btn-secondary" onclick="closeModals()">Close</button>
+                </div>
             </div>
         </div>
     </div>

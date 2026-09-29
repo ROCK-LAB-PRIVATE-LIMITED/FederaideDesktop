@@ -299,10 +299,13 @@ class HeadlessAgentView:
         return text
 
     def update_status_bar(self):
+        is_nomem = False
+        if hasattr(self, "session_manager") and hasattr(self.session_manager, "is_no_memory"):
+            is_nomem = self.session_manager.is_no_memory()
         self.send_to_electron({
             "type": "status_bar", "mode": self.agent_mode, "agent": self.active_agent.name,
             "agent_color": self.active_agent.color, "tokens": self.current_tokens,
-            "model": self.active_agent.model, "cwd": self.workspace_dir
+            "model": self.active_agent.model, "cwd": self.workspace_dir, "is_nomem": is_nomem
         })
 
     def update_tokens(self):
@@ -626,16 +629,17 @@ class HeadlessAgentView:
         except Exception as e:
             self.log_to_ui(f"[bold red]Failed to save schedule:[/bold red] {e}")
 
-    def action_clear_all_contexts(self):
+    def action_clear_all_contexts(self, no_memory: bool = False):
         self.action_abort()
-        self.session_manager.clear_all_contexts()
+        self.session_manager.clear_all_contexts(no_memory=no_memory)
         default_name = self.agent_manager.get_default_agent_name()
         if default_name:
             self.select_agent(default_name)
         self.agent_mode = "PLAN"
         self.current_tokens = 0
-        self.send_to_electron({"type": "clear_chat"})
-        self.log_to_ui("[bold yellow]ALL CONTEXTS CLEARED. Fresh multiagent session started.[/bold yellow]")
+        self.send_to_electron({"type": "clear_chat", "is_nomem": no_memory})
+        msg = "ALL CONTEXTS CLEARED. Fresh NO-MEMORY session started." if no_memory else "ALL CONTEXTS CLEARED. Fresh multiagent session started."
+        self.log_to_ui(f"[bold yellow]{msg}[/bold yellow]")
         self.update_status_bar()
 
     def run_agent_task(self, agent, prompt, override_thread_id=None, batch_id=0):
@@ -762,6 +766,12 @@ class HeadlessAgentView:
         data["api_key"] = agent.get_api_key()
         data["backup_api_key"] = agent.get_backup_api_key()
         all_tools = ["list_files", "search_web", "perform_research", "render_pdf", "manage_agenda", "read_file", "fetch_url", "save_file", "edit_file", "dispatch_coding_subagent", "run_terminal_command", "visual_computer_operation", "send_file_to_telegram"]
+        try:
+            for mt in toolbox.load_mcp_tools():
+                if mt.name not in all_tools:
+                    all_tools.append(mt.name)
+        except Exception:
+            pass
         self.send_to_electron({"type": "agent_data", "data": data, "all_tools": all_tools, "all_agent_names": list(self.agent_manager.agents.keys())})
 
     def save_agent_data(self, fields, is_new=False, old_name=None):
@@ -930,11 +940,11 @@ class HeadlessAgentView:
 
     def get_sessions_list(self):
         sessions_dir = toolbox.get_storage_path("sessions")
-        if not os.path.exists(sessions_dir):
-            self.send_to_electron({"type": "sessions_list_data", "sessions": []})
-            return
+        nomem_dir = toolbox.get_storage_path("nomem_sessions")
+        os.makedirs(sessions_dir, exist_ok=True)
+        os.makedirs(nomem_dir, exist_ok=True)
 
-        files = sorted(glob.glob(os.path.join(sessions_dir, "*.json")), key=os.path.getmtime, reverse=True)
+        files = sorted(glob.glob(os.path.join(sessions_dir, "*.json")) + glob.glob(os.path.join(nomem_dir, "*.json")), key=os.path.getmtime, reverse=True)
         name_map = agent_core.get_session_name_map()
         
         seen_sessions = {}
@@ -1213,7 +1223,44 @@ def handle_client_message(view, data):
     elif action == "abort":
         view.action_abort()
     elif action == "clear_all":
-        view.action_clear_all_contexts()
+        no_mem = bool(data.get("no_memory", False))
+        view.action_clear_all_contexts(no_memory=no_mem)
+    elif action == "get_mcp_config":
+        try:
+            import mcp_handler
+            raw = mcp_handler.load_mcp_config_raw()
+        except Exception:
+            raw = '{\n  "mcpServers": {}\n}'
+        view.send_to_electron({"type": "mcp_config_data", "config": raw})
+    elif action == "save_mcp_config":
+        raw_json = data.get("config", "{}")
+        try:
+            json.loads(raw_json)
+            import mcp_handler
+            mcp_handler.save_mcp_config_raw(raw_json)
+            toolbox.reload_mcp_servers()
+            view.send_to_electron({"type": "mcp_save_status", "status": "success"})
+            view.log_to_ui("[bold green]MCP servers configuration saved and reloaded.[/bold green]")
+        except Exception as e:
+            view.send_to_electron({"type": "mcp_save_status", "status": "failed", "error": str(e)})
+    elif action == "query_mcp_tools":
+        def _query():
+            raw_json = data.get("config")
+            if raw_json:
+                try:
+                    json.loads(raw_json)
+                    import mcp_handler
+                    mcp_handler.save_mcp_config_raw(raw_json)
+                except Exception:
+                    pass
+            view.send_to_electron({"type": "mcp_query_status", "status": "querying", "message": "Querying MCP servers (Downloading dependencies via npx can take 60s+)..."})
+            try:
+                tools = toolbox.load_mcp_tools(force_reload=True, timeout=120.0)
+                tool_summaries = [{"name": t.name, "description": t.description} for t in tools]
+                view.send_to_electron({"type": "mcp_query_status", "status": "done", "tools": tool_summaries})
+            except Exception as e:
+                view.send_to_electron({"type": "mcp_query_status", "status": "error", "error": str(e)})
+        threading.Thread(target=_query, daemon=True).start()
     elif action == "select_agent":
         view.select_agent(data.get("name"))
     elif action == "set_default_agent":

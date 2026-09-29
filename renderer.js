@@ -44,6 +44,33 @@ let activeToolImages = null;
 let activeToolReadout = null;
 let activeToolCard = null;
 
+let isChatEmpty = true;
+let isNoMemorySession = false;
+
+function updateNewChatButtonState() {
+    const btn = document.getElementById('btn-header-new-chat');
+    const nomemBadge = document.getElementById('status-nomem-badge');
+    if (!btn) return;
+
+    btn.classList.remove('btn-chat-empty', 'btn-chat-nomem');
+
+    if (nomemBadge) {
+        nomemBadge.style.display = isNoMemorySession ? 'inline-block' : 'none';
+    }
+
+    if (isChatEmpty) {
+        if (isNoMemorySession) {
+            btn.classList.add('btn-chat-nomem');
+            btn.title = "No-Memory Session Active (Click to toggle Normal)";
+        } else {
+            btn.classList.add('btn-chat-empty');
+            btn.title = "Empty Chat (Click to toggle No-Memory Session)";
+        }
+    } else {
+        btn.title = isNoMemorySession ? "New Conversation (Current: No-Memory) [Ctrl+K]" : "New Conversation (Ctrl+K)";
+    }
+}
+
 // --- STARTUP SPLASH ANIMATION ENGINE ---
 const splashLoader = document.getElementById('app-splash-loader');
 const splashCanvas = document.getElementById('splash-canvas');
@@ -633,7 +660,16 @@ if (btnHeaderAbort) {
 const btnHeaderNewChat = document.getElementById('btn-header-new-chat');
 if (btnHeaderNewChat) {
     btnHeaderNewChat.onclick = () => {
-        sendToPython({ action: "clear_all" });
+        if (isChatEmpty) {
+            isNoMemorySession = !isNoMemorySession;
+            sendToPython({ action: "clear_all", no_memory: isNoMemorySession });
+            updateNewChatButtonState();
+        } else {
+            isNoMemorySession = false;
+            sendToPython({ action: "clear_all", no_memory: false });
+            isChatEmpty = true;
+            updateNewChatButtonState();
+        }
     };
 }
 
@@ -786,8 +822,15 @@ document.getElementById('btn-close-drawer').onclick = () => toggleDrawer(false);
 sidebarOverlay.onclick = () => toggleDrawer(false);
 
 document.getElementById('btn-tray-new-chat').onclick = () => {
-    sendToPython({ action: "clear_all" });
+    isNoMemorySession = false;
+    isChatEmpty = true;
+    sendToPython({ action: "clear_all", no_memory: false });
+    updateNewChatButtonState();
     toggleDrawer(false);
+};
+document.getElementById('btn-tray-mcp').onclick = () => {
+    toggleDrawer(false);
+    openMcpModal();
 };
 document.getElementById('btn-tray-settings').onclick = () => {
     toggleDrawer(false);
@@ -1084,6 +1127,10 @@ window.electronAPI.onPythonMessage((msg) => {
                 break;
 
             case "status_bar":
+                if (msg.is_nomem !== undefined) {
+                    isNoMemorySession = !!msg.is_nomem;
+                    updateNewChatButtonState();
+                }
                 updateStatusBar(msg);
                 break;
 
@@ -1099,7 +1146,57 @@ window.electronAPI.onPythonMessage((msg) => {
                 workingAgentsMap.clear();
                 workingIndicator.style.display = "none";
                 stopReactorAnimation();
+                isChatEmpty = true;
+                if (msg.is_nomem !== undefined) {
+                    isNoMemorySession = !!msg.is_nomem;
+                }
+                updateNewChatButtonState();
                 break;
+
+            case "mcp_config_data": {
+                const editor = document.getElementById('mcp-json-editor');
+                if (editor) editor.value = msg.config || '{\n  "mcpServers": {}\n}';
+                break;
+            }
+
+            case "mcp_save_status": {
+                const statusEl = document.getElementById('mcp-status-msg');
+                const btnSave = document.getElementById('btn-mcp-save');
+                if (btnSave) { btnSave.disabled = false; btnSave.innerText = 'Save Config'; }
+                if (msg.status === "success") {
+                    if (statusEl) statusEl.innerHTML = '<span style="color:var(--brand-green);">✓ Configuration saved and MCP servers reloaded.</span>';
+                    setTimeout(() => closeModals(), 800);
+                } else {
+                    if (statusEl) statusEl.innerHTML = '<span style="color:var(--brand-red);">✗ Error: ' + window.electronAPI.escapeHtml(msg.error || 'Invalid JSON') + '</span>';
+                }
+                break;
+            }
+
+            case "mcp_query_status": {
+                const logEl = document.getElementById('mcp-console-log');
+                const btnQuery = document.getElementById('btn-mcp-query');
+                if (logEl) logEl.style.display = 'block';
+
+                if (msg.status === "querying") {
+                    if (btnQuery) { btnQuery.disabled = true; btnQuery.innerText = 'Querying...'; }
+                    if (logEl) logEl.innerText = msg.message || 'Connecting to MCP servers...';
+                } else if (msg.status === "done") {
+                    if (btnQuery) { btnQuery.disabled = false; btnQuery.innerText = 'Query / Refresh Tools'; }
+                    const tools = msg.tools || [];
+                    if (tools.length === 0) {
+                        if (logEl) logEl.innerText = 'No tools returned. Check your JSON server commands, paths, and dependencies.';
+                    } else {
+                        let out = `✓ Retrieved ${tools.length} active MCP tools:\n`;
+                        tools.forEach(t => { out += `\n✦ ${t.name}: ${t.description}`; });
+                        if (logEl) logEl.innerText = out;
+                    }
+                    sendToPython({ action: "get_agent_data" });
+                } else if (msg.status === "error") {
+                    if (btnQuery) { btnQuery.disabled = false; btnQuery.innerText = 'Query / Refresh Tools'; }
+                    if (logEl) logEl.innerText = `✗ Query Failed: ${msg.error}`;
+                }
+                break;
+            }
 
             case "confirm_tool":
                 showToolModal(msg);
@@ -1341,10 +1438,14 @@ function getAgentColor(name) {
 
 function appendLog(text, isMarkdown) {
     const clean = stripRichTags(text);
-    if (clean.includes("ALL CONTEXTS CLEARED") || clean.includes("Fresh multiagent session")) {
+    if (clean.includes("ALL CONTEXTS CLEARED") || clean.includes("Fresh multiagent session") || clean.includes("Fresh NO-MEMORY session")) {
         if (welcomeHero) welcomeHero.style.display = 'block';
+        isChatEmpty = true;
+        updateNewChatButtonState();
         return;
     }
+    isChatEmpty = false;
+    updateNewChatButtonState();
     hideWelcomeHero();
     
     if (activeToolContainer && activeToolReadout) {
@@ -1372,6 +1473,8 @@ function appendLog(text, isMarkdown) {
 }
 
 function appendMessageBlock(header, content, color, isMarkdown, silent = false) {
+    isChatEmpty = false;
+    updateNewChatButtonState();
     hideWelcomeHero();
     const cleanHead = stripRichTags(header);
     const cleanBody = stripRichTags(content);
@@ -1696,6 +1799,8 @@ function hideProgress() {
 }
 
 function mountAIBox(agentName, color) {
+    isChatEmpty = false;
+    updateNewChatButtonState();
     activeToolContainer = null;
     hideWelcomeHero();
     soundFX.agentChime();
@@ -2060,6 +2165,15 @@ function submitPrompt() {
 
     if (!hasText) return;
 
+    if (text === "/mcp") {
+        chatInput.value = '';
+        openMcpModal();
+        return;
+    }
+
+    isChatEmpty = false;
+    updateNewChatButtonState();
+
     soundFX.send();
 
     pendingAttachments.forEach(att => {
@@ -2276,6 +2390,42 @@ function syncColorPicker(pickerId, textId, defaultColor = "#3ddbd9") {
     if (/^#[0-9A-Fa-f]{6}$/.test(currentVal)) {
         picker.value = currentVal;
     }
+}
+
+function openMcpModal() {
+    const logEl = document.getElementById('mcp-console-log');
+    const statusEl = document.getElementById('mcp-status-msg');
+    if (logEl) { logEl.style.display = 'none'; logEl.innerText = ''; }
+    if (statusEl) statusEl.innerText = '';
+    sendToPython({ action: "get_mcp_config" });
+    document.getElementById('mcp-modal').style.display = 'flex';
+}
+
+const btnMcpQuery = document.getElementById('btn-mcp-query');
+if (btnMcpQuery) {
+    btnMcpQuery.onclick = () => {
+        const editor = document.getElementById('mcp-json-editor');
+        const jsonVal = (editor ? editor.value : "").trim();
+        sendToPython({ action: "query_mcp_tools", config: jsonVal });
+    };
+}
+
+const btnMcpSave = document.getElementById('btn-mcp-save');
+if (btnMcpSave) {
+    btnMcpSave.onclick = () => {
+        const editor = document.getElementById('mcp-json-editor');
+        const jsonVal = (editor ? editor.value : "").trim();
+        const statusEl = document.getElementById('mcp-status-msg');
+        try {
+            JSON.parse(jsonVal);
+        } catch (e) {
+            if (statusEl) statusEl.innerHTML = `<span style="color:var(--brand-red);">✗ Invalid JSON format: ${e.message}</span>`;
+            return;
+        }
+        btnMcpSave.disabled = true;
+        btnMcpSave.innerText = 'Saving...';
+        sendToPython({ action: "save_mcp_config", config: jsonVal });
+    };
 }
 
 function openGlobalSettings() {
