@@ -121,8 +121,8 @@ COPY electron_bridge.py /app/electron_bridge.py
 
 
 # Install full TUI IDE extras
-RUN uv tool install --system --no-cache \
-    keyrings.alt \
+RUN uv tool install --no-cache \
+    --with keyrings.alt \
     "federaide[ide,vision,pdf]"
 
 # Configure GTK Dark Theme and Chromium container flags
