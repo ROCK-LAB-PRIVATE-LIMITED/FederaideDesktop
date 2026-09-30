@@ -294,7 +294,7 @@ function createWindow() {
         }
 
         const home = os.homedir();
-        const ws = fs.existsSync(path.join(home, 'Documents', 'FederateWorkspace'))
+        const ws = process.platform === 'darwin'
             ? path.join(home, 'Documents', 'FederateWorkspace')
             : path.join(home, 'FederateWorkspace');
         const configDir = path.join(home, '.federate');

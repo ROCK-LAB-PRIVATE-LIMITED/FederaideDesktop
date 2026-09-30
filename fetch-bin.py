@@ -84,6 +84,29 @@ def create_qemu_wrapper(qemu_target_dir):
 #include <stdlib.h>
 #include <stdio.h>
 
+int should_disable_irqchip() {
+    char p[MAX_PATH];
+    const char *u = getenv("USERPROFILE");
+    if (!u) u = getenv("HOME");
+    if (!u) return 1;
+    snprintf(p, sizeof(p), "%s\\.federate", u);
+    CreateDirectoryA(p, NULL);
+    snprintf(p, sizeof(p), "%s\\.federate\\whpx-irqchip.conf", u);
+    FILE *f = fopen(p, "r");
+    if (!f) {
+        f = fopen(p, "w");
+        if (f) { fputs("# Set to 'off' or 'false' to disable kernel-irqchip=off on newer CPUs\nenabled=true\n", f); fclose(f); }
+        return 1;
+    }
+    char buf[128];
+    int enabled = 1;
+    while (fgets(buf, sizeof(buf), f)) {
+        if (strstr(buf, "false") || strstr(buf, "off") || strstr(buf, "disabled")) { enabled = 0; break; }
+    }
+    fclose(f);
+    return enabled;
+}
+
 int main() {
     char exePath[MAX_PATH];
     GetModuleFileNameA(NULL, exePath, MAX_PATH);
@@ -110,7 +133,7 @@ int main() {
     if (!newCmd) return 1;
 
     char *whpxPos = strstr(args, "accel=whpx");
-    if (whpxPos && !strstr(args, "kernel-irqchip=off")) {
+    if (whpxPos && !strstr(args, "kernel-irqchip=off") && should_disable_irqchip()) {
         size_t prefixLen = whpxPos - args;
         snprintf(newCmd, newCmdLen, "\"%s\" %.*saccel=whpx,kernel-irqchip=off%s",
                  realExe, (int)prefixLen, args, whpxPos + strlen("accel=whpx"));
@@ -179,8 +202,15 @@ int main() {
         cmd_content = (
             '@echo off\r\n'
             'setlocal enabledelayedexpansion\r\n'
+            'set "CONF=%USERPROFILE%\\.federate\\whpx-irqchip.conf"\r\n'
+            'if not exist "%USERPROFILE%\\.federate" mkdir "%USERPROFILE%\\.federate"\r\n'
+            'if not exist "!CONF!" echo enabled=true > "!CONF!"\r\n'
+            'set "USE_BYPASS=1"\r\n'
+            'for /f "tokens=*" %%a in (!CONF!) do (\r\n'
+            '    echo %%a | findstr /i "off false disabled" >nul && set "USE_BYPASS=0"\r\n'
+            ')\r\n'
             'set "CMD_ARGS=%*"\r\n'
-            'set "CMD_ARGS=!CMD_ARGS:accel=whpx=accel=whpx,kernel-irqchip=off!"\r\n'
+            'if "!USE_BYPASS!"=="1" set "CMD_ARGS=!CMD_ARGS:accel=whpx=accel=whpx,kernel-irqchip=off!"\r\n'
             '"%~dp0qemu-system-x86_64.real.exe" !CMD_ARGS!\r\n'
         )
         with open(wrapper_cmd, "w", encoding="utf-8") as f:

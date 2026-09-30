@@ -35,5 +35,3 @@ mounts:
     writable: true
   - location: "{{.Home}}/FederateWorkspace"
     writable: true
-  - location: "{{.Home}}/Documents/FederateWorkspace"
-    writable: true
