@@ -32,6 +32,24 @@ let usingLima = false;
 const LIMA_HOME = path.join(os.homedir(), '.f-lima');
 process.env.LIMA_HOME = LIMA_HOME;
 
+function handleLaunchFailureToggle() {
+    if (process.platform !== 'win32') return false;
+    const bootSuccessFile = path.join(LIMA_HOME, '.boot_success');
+    if (fs.existsSync(bootSuccessFile)) return false;
+
+    const confFile = path.join(LIMA_HOME, 'whpx-irqchip.conf');
+    let currentVal = 'enabled=false';
+    if (fs.existsSync(confFile)) {
+        try { currentVal = fs.readFileSync(confFile, 'utf8'); } catch (_) {}
+    }
+    const isCurrentlyEnabled = /true|on|1/i.test(currentVal);
+    const nextVal = isCurrentlyEnabled ? 'enabled=false' : 'enabled=true';
+    try {
+        fs.writeFileSync(confFile, `# Set to 'on' or 'true' to enable kernel-irqchip=off bypass on older CPUs\n${nextVal}\n`);
+    } catch (_) {}
+    return true;
+}
+
 function getLimactlPath() {
     const platform = process.platform;
     const arch = process.arch;
@@ -303,6 +321,9 @@ function createWindow() {
         fs.mkdirSync(configDir, { recursive: true });
         fs.mkdirSync(LIMA_HOME, { recursive: true });
 
+        const bootSuccessFile = path.join(LIMA_HOME, '.boot_success');
+        //try { if (fs.existsSync(bootSuccessFile)) fs.unlinkSync(bootSuccessFile); } catch (_) {}
+
         // Auto-sync bundled bridge engine and core scripts to ~/.federate
         const pythonScripts = ['electron_bridge.py'];
         for (const script of pythonScripts) {
@@ -447,6 +468,9 @@ function createWindow() {
                 if (line.trim()) {
                     try {
                         const msg = JSON.parse(line);
+                        if (msg.type === "init") {
+                            try { fs.writeFileSync(path.join(LIMA_HOME, '.boot_success'), '1'); } catch (_) {}
+                        }
                         if (msg.type === "backend_missing") {
                             backendMissingHandled = true;
                             dialog.showMessageBoxSync(mainWindow || null, {
@@ -482,11 +506,13 @@ function createWindow() {
         pythonProcess.on('close', (code) => {
             console.log(`Python process exited with code ${code}`);
             if (!backendMissingHandled && code !== 0 && !isAppQuitting) {
+                const toggled = handleLaunchFailureToggle();
+                const fixMsg = toggled ? "\n\nLaunch failure will be fixed on next run, please restart the program." : "";
                 dialog.showMessageBoxSync(mainWindow || null, {
                     type: 'error',
                     title: 'Engine Sandbox Error',
                     message: `The FEDERaiDE sandboxed engine exited unexpectedly (code ${code}).`,
-                    detail: pythonStderr || 'No stderr output captured.',
+                    detail: (pythonStderr || 'No stderr output captured.') + fixMsg,
                     buttons: ['Quit']
                 });
             }
@@ -498,11 +524,13 @@ function createWindow() {
     mainWindow.webContents.on('did-finish-load', () => {
         startBackendAsync().catch((err) => {
             console.error("[Sandbox Startup Failed]:", err);
+            const toggled = handleLaunchFailureToggle();
+            const fixMsg = toggled ? "\n\nLaunch failure will be fixed on next run, please restart the program." : "";
             dialog.showMessageBoxSync(mainWindow || null, {
                 type: 'error',
                 title: 'Sandbox Startup Failure',
                 message: 'Failed to initialize the isolated environment.',
-                detail: err.message || String(err),
+                detail: (err.message || String(err)) + fixMsg,
                 buttons: ['Quit']
             });
             app.quit();
