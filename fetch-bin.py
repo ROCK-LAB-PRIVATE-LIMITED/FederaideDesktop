@@ -84,24 +84,37 @@ def create_qemu_wrapper(qemu_target_dir):
 #include <stdlib.h>
 #include <stdio.h>
 
-int should_disable_irqchip() {
+int should_apply_irqchip_bypass() {
     char p[MAX_PATH];
-    const char *u = getenv("USERPROFILE");
-    if (!u) u = getenv("HOME");
-    if (!u) return 1;
-    snprintf(p, sizeof(p), "%s\\.federate", u);
+    const char *lh = getenv("LIMA_HOME");
+    if (lh && *lh) {
+        snprintf(p, sizeof(p), "%s", lh);
+    } else {
+        const char *u = getenv("USERPROFILE");
+        if (!u) u = getenv("HOME");
+        if (!u) return 0;
+        snprintf(p, sizeof(p), "%s\\.f-lima", u);
+    }
     CreateDirectoryA(p, NULL);
-    snprintf(p, sizeof(p), "%s\\.federate\\whpx-irqchip.conf", u);
-    FILE *f = fopen(p, "r");
+    char confFile[MAX_PATH];
+    snprintf(confFile, sizeof(confFile), "%s\\whpx-irqchip.conf", p);
+
+    FILE *f = fopen(confFile, "r");
     if (!f) {
-        f = fopen(p, "w");
-        if (f) { fputs("# Set to 'off' or 'false' to disable kernel-irqchip=off on newer CPUs\nenabled=true\n", f); fclose(f); }
-        return 1;
+        f = fopen(confFile, "w");
+        if (f) {
+            fputs("# Set to 'on' or 'true' to enable kernel-irqchip=off bypass on older CPUs\nenabled=false\n", f);
+            fclose(f);
+        }
+        return 0; // Default: bypass is OFF
     }
     char buf[128];
-    int enabled = 1;
+    int enabled = 0;
     while (fgets(buf, sizeof(buf), f)) {
-        if (strstr(buf, "false") || strstr(buf, "off") || strstr(buf, "disabled")) { enabled = 0; break; }
+        if (strstr(buf, "true") || strstr(buf, "on") || strstr(buf, "1")) {
+            enabled = 1;
+            break;
+        }
     }
     fclose(f);
     return enabled;
@@ -133,7 +146,7 @@ int main() {
     if (!newCmd) return 1;
 
     char *whpxPos = strstr(args, "accel=whpx");
-    if (whpxPos && !strstr(args, "kernel-irqchip=off") && should_disable_irqchip()) {
+    if (whpxPos && !strstr(args, "kernel-irqchip=off") && should_apply_irqchip_bypass()) {
         size_t prefixLen = whpxPos - args;
         snprintf(newCmd, newCmdLen, "\"%s\" %.*saccel=whpx,kernel-irqchip=off%s",
                  realExe, (int)prefixLen, args, whpxPos + strlen("accel=whpx"));
@@ -202,12 +215,14 @@ int main() {
         cmd_content = (
             '@echo off\r\n'
             'setlocal enabledelayedexpansion\r\n'
-            'set "CONF=%USERPROFILE%\\.federate\\whpx-irqchip.conf"\r\n'
-            'if not exist "%USERPROFILE%\\.federate" mkdir "%USERPROFILE%\\.federate"\r\n'
-            'if not exist "!CONF!" echo enabled=true > "!CONF!"\r\n'
-            'set "USE_BYPASS=1"\r\n'
+            'set "L_HOME=%LIMA_HOME%"\r\n'
+            'if "!L_HOME!"=="" set "L_HOME=%USERPROFILE%\\.f-lima"\r\n'
+            'set "CONF=!L_HOME!\\whpx-irqchip.conf"\r\n'
+            'if not exist "!L_HOME!" mkdir "!L_HOME!"\r\n'
+            'if not exist "!CONF!" echo enabled=false > "!CONF!"\r\n'
+            'set "USE_BYPASS=0"\r\n'
             'for /f "tokens=*" %%a in (!CONF!) do (\r\n'
-            '    echo %%a | findstr /i "off false disabled" >nul && set "USE_BYPASS=0"\r\n'
+            '    echo %%a | findstr /i "true on 1" >nul && set "USE_BYPASS=1"\r\n'
             ')\r\n'
             'set "CMD_ARGS=%*"\r\n'
             'if "!USE_BYPASS!"=="1" set "CMD_ARGS=!CMD_ARGS:accel=whpx=accel=whpx,kernel-irqchip=off!"\r\n'

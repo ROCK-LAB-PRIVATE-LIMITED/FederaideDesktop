@@ -1,6 +1,6 @@
 vmType: "qemu"
 cpus: 2
-memory: "3GiB"
+memory: "4GiB"
 disk: "10GiB"
 vmOpts:
   qemu:
