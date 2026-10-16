@@ -1268,6 +1268,10 @@
                 <svg viewBox="0 0 24 24"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
                 <span>MCP Servers</span>
             </button>
+            <button class="tray-action-btn" id="btn-tray-teams">
+                <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                <span>Team Workspaces</span>
+            </button>
             <button class="tray-action-btn" id="btn-tray-settings">
                 <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
                 <span>Global Settings</span>
@@ -1745,7 +1749,117 @@
             </div>
         </div>
     </div>
+    <!-- TEAMS MODAL [F1] -->
+    <div id="teams-modal" class="modal-overlay">
+        <div class="modal-dialog" style="max-width: 680px; max-height: 90vh;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.6rem; margin-bottom: 0.75rem;">
+                <h2 style="margin: 0; border: none; padding: 0;">Team Workspaces &amp; Remote Git</h2>
+                <span id="active-team-header-pill" class="badge-pill" style="border: 1px solid var(--brand-teal); color: var(--brand-teal); font-size: 0.75rem; text-transform: uppercase;">Default</span>
+            </div>
 
+            <div class="modal-body">
+                <div class="section-header" id="team-form-title">Create or Edit Team Workspace</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Team Name</label>
+                        <input type="text" id="team-name-input" class="form-control" placeholder="e.g. Scraper Team">
+                    </div>
+                    <div class="form-group">
+                        <label>Folder Name or Path</label>
+                        <input type="text" id="team-folder-input" class="form-control" placeholder="e.g. .teamScraper">
+                    </div>
+                </div>
+
+                <div class="section-header">Git Remote Configuration (PAT stored in OS Keyring)</div>
+                <div class="form-group">
+                    <label>Remote URL</label>
+                    <input type="text" id="team-remote-url-input" class="form-control" placeholder="https://github.com/org/repo.git">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Git Username</label>
+                        <input type="text" id="team-git-user-input" class="form-control" placeholder="Username">
+                    </div>
+                    <div class="form-group">
+                        <label>Personal Access Token (PAT)</label>
+                        <input type="password" id="team-git-pat-input" class="form-control" placeholder="Personal Access Token">
+                    </div>
+                </div>
+
+                <!-- Balanced 3-Column Symmetrical Action Grid -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; width: 100%; margin: 10px 0 6px 0;">
+                    <button class="modal-btn btn-primary" id="btn-save-team" style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px; border-radius: 8px;">
+                        <span>💾</span> <span id="btn-save-team-label">Save Team</span>
+                    </button>
+                    <button class="modal-btn btn-secondary" id="btn-restore-team" style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px; border-radius: 8px;">
+                        <span>📥</span> <span>Restore (Clone)</span>
+                    </button>
+                    <button class="modal-btn btn-secondary" id="btn-clear-team-form" style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px; border-radius: 8px;">
+                        <span>🧹</span> <span>Clear Form</span>
+                    </button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; width: 100%; margin-bottom: 14px;">
+                    <button class="modal-btn btn-secondary" id="btn-team-pull" style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px; border-radius: 8px;">
+                        <span>⬇</span> <span>Pull</span>
+                    </button>
+                    <button class="modal-btn btn-secondary" id="btn-team-push" style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px; border-radius: 8px;">
+                        <span>⬆</span> <span>Push</span>
+                    </button>
+                    <button class="modal-btn btn-secondary" id="btn-team-sync" style="display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px; border-radius: 8px; border-color: var(--brand-teal); color: var(--brand-teal);">
+                        <span>🔄</span> <span>Sync Now</span>
+                    </button>
+                </div>
+
+                <div class="section-header">Registered Teams</div>
+                <div id="teams-list-container" style="display: flex; flex-direction: column; gap: 8px; min-height: 80px;"></div>
+            </div>
+            
+            <div class="modal-actions" style="display: flex; justify-content: space-between; align-items: center;">
+                <div id="team-git-status-msg" style="font-size: 0.78rem; font-family: var(--font-mono); color: var(--text-muted); min-height: 16px;"></div>
+                <button class="modal-btn btn-secondary" onclick="closeModals()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GIT CONFLICT MODAL -->
+    <div id="git-conflict-modal" class="modal-overlay">
+        <div class="modal-dialog" style="max-width: 480px; border: 1.5px solid var(--brand-red);">
+            <h2 style="color: var(--brand-red);">Git Conflict Detected</h2>
+            <div class="modal-body">
+                <p style="font-size: 0.85rem; color: var(--text-main); margin-bottom: 8px;">
+                    The local and remote repository histories have diverged. Choose how to reconcile:
+                </p>
+                <ul style="font-size: 0.78rem; color: var(--text-dim); margin-left: 1.2rem; line-height: 1.5;">
+                    <li><b>Attempt Merge:</b> Git merges changes automatically.</li>
+                    <li><b>Keep Local:</b> Overwrites remote with local state (Force Push).</li>
+                    <li><b>Keep Remote:</b> Overwrites local files with remote state.</li>
+                </ul>
+            </div>
+            <div class="modal-actions" style="flex-wrap: wrap;">
+                <button class="modal-btn btn-primary" id="btn-conflict-merge">Attempt Merge</button>
+                <button class="modal-btn btn-secondary" id="btn-conflict-local" style="color:var(--brand-green);">Keep Local</button>
+                <button class="modal-btn btn-secondary" id="btn-conflict-remote" style="color:var(--brand-yellow);">Keep Remote</button>
+                <button class="modal-btn btn-danger" onclick="document.getElementById('git-conflict-modal').style.display='none'">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TEAM DELETE MODAL -->
+    <div id="team-delete-modal" class="modal-overlay">
+        <div class="modal-dialog" style="max-width: 440px; border: 1.5px solid var(--brand-red);">
+            <h2 style="color: var(--brand-red);">Delete Team Workspace</h2>
+            <div class="modal-body">
+                <p style="font-size: 0.85rem; color: var(--text-main);" id="team-del-prompt-text"></p>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn btn-secondary" id="btn-del-unregister" style="color:var(--brand-yellow);">Unregister Only</button>
+                <button class="modal-btn btn-danger" id="btn-del-purge">Delete from Disk</button>
+                <button class="modal-btn btn-secondary" onclick="document.getElementById('team-delete-modal').style.display='none'">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
     <!-- GLOBAL SETTINGS MODAL [F3] -->
     <div id="global-settings-modal" class="modal-overlay">
         <div class="modal-dialog">

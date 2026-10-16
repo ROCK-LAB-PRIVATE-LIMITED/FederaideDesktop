@@ -208,6 +208,12 @@ class HeadlessAgentView:
         self.current_telegram_chat_id = None
         self.last_screenshot_path = None
 
+        # Initialize Git version control for the active team
+        try:
+            toolbox.init_federate_git_repo()
+        except Exception:
+            pass
+
         # Background automated schedule timer
         threading.Thread(target=self._scheduler_loop, daemon=True).start()
         # Background X11 desktop display monitor (opens noVNC in Electron when a GUI window spawns)
@@ -474,6 +480,101 @@ class HeadlessAgentView:
             self.send_to_electron({"type": "agent_selected", "name": agent.name, "color": agent.color, "model": agent.model})
             return True
         return False
+
+    def switch_team(self, team_dir: str, display_name: str = None):
+        """Switches active team workspace, re-initializing git, databases, and managers."""
+        self.action_abort()
+        toolbox.set_team_dir(team_dir)
+        toolbox.init_federate_git_repo()
+        toolbox.reconnect_team_databases()
+
+        settings = toolbox.load_global_settings()
+        registered = settings.get("registered_teams", [])
+        clean_dir = toolbox.get_team_dir()
+        d_name = display_name or os.path.basename(clean_dir).lstrip(".")
+        if not any(os.path.abspath(os.path.expanduser(t.get("path", ""))) == clean_dir for t in registered):
+            teams = list(registered)
+            teams.append({"name": d_name, "path": clean_dir})
+            settings["registered_teams"] = teams
+            toolbox.save_global_settings(settings)
+
+        self.agent_manager = AgentManager()
+        self.session_manager = SessionManager()
+        self.schedule_manager = ScheduleManager()
+        with self.turn_lock:
+            self.turn_queue.clear()
+            self.paused_queue.clear()
+
+        default_name = self.agent_manager.get_default_agent_name()
+        initial_agent = self.agent_manager.get_agent(default_name) or list(self.agent_manager.agents.values())[0]
+        self.select_agent(initial_agent.name)
+        toolbox.reload_mcp_servers()
+
+        self.send_to_electron({"type": "clear_chat"})
+        self.update_status_bar()
+        self.send_to_electron({
+            "type": "init",
+            "session_token": self.session_token,
+            "active_agent": self.active_agent.name,
+            "default_agent": self.agent_manager.get_default_agent_name(),
+            "agents": [{"name": a.name, "color": a.color, "model": a.model} for a in self.agent_manager.agents.values()],
+            "needs_onboarding": self.is_onboarding_needed()
+        })
+        self.log_to_ui(f"[bold green]Switched active team to '{d_name}'[/bold green]")
+        self.get_teams_data()
+
+    def get_teams_data(self, target_path: str = None):
+        settings = toolbox.load_global_settings()
+        registered = settings.get("registered_teams", [])
+        active_path = os.path.abspath(os.path.expanduser(toolbox.get_team_dir()))
+
+        default_dir = os.path.abspath(os.path.expanduser("~/.federate"))
+        # Ensure Default is always registered and persisted
+        if not any(os.path.abspath(os.path.expanduser(t.get("path", ""))) == default_dir for t in registered):
+            registered.insert(0, {"name": "Default", "path": default_dir})
+            settings["registered_teams"] = registered
+            toolbox.save_global_settings(settings)
+
+        edit_path = os.path.abspath(os.path.expanduser(target_path)) if target_path else active_path
+        remote_url, git_user, git_pat = toolbox.get_team_git_credentials(edit_path)
+
+        teams_list = []
+        for t in registered:
+            p = os.path.abspath(os.path.expanduser(t.get("path", "")))
+            r_url, _, _ = toolbox.get_team_git_credentials(p)
+            teams_list.append({
+                "name": t.get("name") or os.path.basename(p).lstrip("."),
+                "path": p,
+                "is_active": (p == active_path),
+                "remote_url": r_url
+            })
+
+        edit_path = os.path.abspath(os.path.expanduser(target_path)) if target_path else active_path
+        remote_url, git_user, git_pat = toolbox.get_team_git_credentials(edit_path)
+
+        teams_list = []
+        for t in registered:
+            p = os.path.abspath(os.path.expanduser(t.get("path", "")))
+            r_url, _, _ = toolbox.get_team_git_credentials(p)
+            teams_list.append({
+                "name": t.get("name") or os.path.basename(p).lstrip("."),
+                "path": p,
+                "is_active": (p == active_path),
+                "remote_url": r_url
+            })
+
+        self.send_to_electron({
+            "type": "teams_data",
+            "teams": teams_list,
+            "editing_team": {
+                "name": next((t["name"] for t in teams_list if t["path"] == edit_path), os.path.basename(edit_path).lstrip(".")),
+                "path": edit_path,
+                "remote_url": remote_url,
+                "git_user": git_user,
+                "has_pat": bool(git_pat),
+                "git_pat": git_pat
+            }
+        })
 
     def action_abort(self):
         toolbox.ABORT_EVENT.set()
@@ -1239,6 +1340,143 @@ def handle_client_message(view, data):
     elif action == "clear_all":
         no_mem = bool(data.get("no_memory", False))
         view.action_clear_all_contexts(no_memory=no_mem)
+    elif action == "get_teams":
+        view.get_teams_data(data.get("path"))
+    elif action == "switch_team":
+        view.switch_team(data.get("path"), data.get("name"))
+    elif action == "save_team":
+        t_name = data.get("name", "").strip()
+        folder_val = data.get("path", "").strip()
+        url = data.get("remote_url", "").strip()
+        user = data.get("git_user", "").strip()
+        pat = data.get("git_pat", "").strip()
+        is_edit = data.get("is_edit", False)
+
+        target_path = os.path.abspath(os.path.expanduser(folder_val)) if is_edit else (
+            folder_val if os.path.isabs(folder_val) else os.path.join(str(Path.home()), folder_val)
+        )
+        name = t_name or os.path.basename(target_path).lstrip(".")
+
+        settings = toolbox.load_global_settings()
+        registered = settings.get("registered_teams", [])
+        if is_edit:
+            for t in registered:
+                if os.path.abspath(os.path.expanduser(t.get("path", ""))) == target_path:
+                    t["name"] = name
+                    break
+        else:
+            if not any(os.path.abspath(os.path.expanduser(t.get("path", ""))) == target_path for t in registered):
+                registered.append({"name": name, "path": target_path})
+        settings["registered_teams"] = registered
+        toolbox.save_global_settings(settings)
+        toolbox.save_team_git_credentials(url, user, pat, team_dir=target_path)
+
+        if not is_edit:
+            view.switch_team(target_path, display_name=name)
+        else:
+            view.get_teams_data(target_path)
+            view.log_to_ui(f"[bold green]Team '{name}' updated successfully.[/bold green]")
+    elif action == "delete_team":
+        t_path = os.path.abspath(os.path.expanduser(data.get("path", "")))
+        purge = data.get("purge", False)
+
+        st = toolbox.load_global_settings()
+        reg = st.get("registered_teams", [])
+        st["registered_teams"] = [t for t in reg if os.path.abspath(os.path.expanduser(t.get("path", ""))) != t_path]
+        toolbox.save_global_settings(st)
+
+        team_tag = re.sub(r'[^a-zA-Z0-9_]', '_', os.path.basename(t_path)).lower().lstrip("_") or "default"
+        try:
+            import keyring
+            keyring.delete_password("Federate", f"git_user_{team_tag}")
+            keyring.delete_password("Federate", f"git_pat_{team_tag}")
+        except Exception:
+            pass
+
+        if t_path == toolbox.get_team_dir() and st["registered_teams"]:
+            remaining = st["registered_teams"][0]
+            next_path = os.path.abspath(os.path.expanduser(remaining.get("path", "")))
+            view.switch_team(next_path, display_name=remaining.get("name"))
+
+        if purge and t_path != str(Path.home()) and os.path.exists(t_path) and len(t_path) > 3:
+            import shutil
+            shutil.rmtree(t_path, ignore_errors=True)
+
+        view.get_teams_data()
+    elif action == "team_git_action":
+        def _run_git():
+            git_action = data.get("git_action", "sync")
+            target_dir = os.path.abspath(os.path.expanduser(data.get("path") or toolbox.get_team_dir()))
+            ok, msg = toolbox.sync_team_remote(action=git_action, team_dir=target_dir)
+            if ok:
+                view.send_to_electron({"type": "git_action_result", "status": "success", "action": git_action, "message": msg})
+                if git_action in ["pull", "sync", "hard-reset-remote", "auto-merge"]:
+                    view.agent_manager.load_agents()
+                    view.session_manager.sync_all_sessions()
+                    view.update_status_bar()
+                view.get_teams_data(target_dir)
+            elif msg == "CONFLICT":
+                view.send_to_electron({"type": "git_conflict", "path": target_dir})
+            else:
+                view.send_to_electron({"type": "git_action_result", "status": "error", "action": git_action, "error": msg})
+        threading.Thread(target=_run_git, daemon=True).start()
+    elif action == "restore_team":
+        def _run_restore():
+            url = data.get("remote_url", "").strip()
+            folder_val = data.get("path", "").strip()
+            user = data.get("git_user", "").strip()
+            pat = data.get("git_pat", "").strip()
+            t_name = data.get("name", "").strip()
+            target_path = os.path.abspath(folder_val) if os.path.isabs(folder_val) else os.path.join(str(Path.home()), folder_val)
+
+            if os.path.exists(target_path) and os.listdir(target_path):
+                view.send_to_electron({"type": "git_action_result", "status": "error", "action": "restore", "error": "Target folder must be empty or non-existent."})
+                return
+
+            try:
+                from urllib.parse import urlparse, urlunparse, quote
+                import subprocess, tempfile, stat, contextlib
+
+                @contextlib.contextmanager
+                def git_askpass_context(pat_str: str):
+                    askpass_ext = ".bat" if os.name == "nt" else ".sh"
+                    fd, askpass_path = tempfile.mkstemp(suffix=askpass_ext, text=True)
+                    with os.fdopen(fd, "w") as f:
+                        if os.name == "nt":
+                            f.write("@echo off\nif \"%~1\"==\"\" exit /b 0\necho %FEDERAIDE_GIT_PASSWORD%\n")
+                        else:
+                            f.write("#!/bin/sh\necho \"$FEDERAIDE_GIT_PASSWORD\"\n")
+                    if os.name != "nt":
+                        os.chmod(askpass_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+                    env = os.environ.copy()
+                    env["GIT_ASKPASS"] = askpass_path
+                    env["FEDERAIDE_GIT_PASSWORD"] = pat_str
+                    env["GIT_TERMINAL_PROMPT"] = "0"
+                    try: yield env
+                    finally:
+                        try: os.remove(askpass_path)
+                        except Exception: pass
+
+                parsed = urlparse(url)
+                user_part = quote(user, safe='') if user else "git"
+                auth_netloc = f"{user_part}@{parsed.netloc}"
+                safe_url = urlunparse((parsed.scheme, auth_netloc, parsed.path, parsed.params, parsed.query, parsed.fragment))
+
+                with git_askpass_context(pat) as env:
+                    res = subprocess.run(["git", "clone", safe_url, target_path], capture_output=True, text=True, env=env)
+
+                if res.returncode == 0:
+                    subprocess.run(["git", "remote", "set-url", "origin", url], cwd=target_path, capture_output=True)
+                    name = t_name or os.path.basename(target_path)
+                    view.switch_team(target_path, display_name=name)
+                    toolbox.save_team_git_credentials(url, user, pat, team_dir=target_path)
+                    view.send_to_electron({"type": "git_action_result", "status": "success", "action": "restore", "message": "Cloned and activated successfully."})
+                else:
+                    err = res.stderr.strip() or res.stdout.strip() or "Clone failed."
+                    view.send_to_electron({"type": "git_action_result", "status": "error", "action": "restore", "error": err})
+            except Exception as e:
+                view.send_to_electron({"type": "git_action_result", "status": "error", "action": "restore", "error": str(e)})
+        threading.Thread(target=_run_restore, daemon=True).start()
     elif action == "get_mcp_config":
         try:
             import mcp_handler
