@@ -17,8 +17,8 @@ services:
     volumes:
       # Mount host directory into container /workspace
       - ./:/workspace
-      # Persist agent memory, configs, and chat sessions across container restarts
-      - federaide-data:/home/federate/.federate
+      # Persist models, system configs, and credentials across container restarts
+      - federaide-data:/home/federate/.federaide
 
 volumes:
   federaide-data:

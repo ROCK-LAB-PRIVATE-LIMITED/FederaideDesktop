@@ -37,7 +37,7 @@ portForwards:
     hostPort: 6081
 
 mounts:
-  - location: "~/.federate"
+  - location: "~/.federaide"
     writable: true
   - location: "~/Documents/FederateWorkspace"
     writable: true

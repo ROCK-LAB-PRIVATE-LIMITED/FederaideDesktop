@@ -315,16 +315,15 @@ function createWindow() {
         const ws = process.platform === 'darwin'
             ? path.join(home, 'Documents', 'FederateWorkspace')
             : path.join(home, 'FederateWorkspace');
-        const configDir = path.join(home, '.federate');
+        const configDir = path.join(home, '.federaide');
 
         fs.mkdirSync(ws, { recursive: true });
         fs.mkdirSync(configDir, { recursive: true });
         fs.mkdirSync(LIMA_HOME, { recursive: true });
 
         const bootSuccessFile = path.join(LIMA_HOME, '.boot_success');
-        //try { if (fs.existsSync(bootSuccessFile)) fs.unlinkSync(bootSuccessFile); } catch (_) {}
 
-        // Auto-sync bundled bridge engine and core scripts to ~/.federate
+        // Auto-sync bundled bridge engine and core scripts to ~/.federaide
         const pythonScripts = ['electron_bridge.py'];
         for (const script of pythonScripts) {
             const candidates = [
@@ -404,10 +403,23 @@ function createWindow() {
         }
 
         // 4. Check if the persistent sandbox container already exists
-        const containerExists = await runLimactlAsync([
+        let containerExists = await runLimactlAsync([
             'shell', 'federaide',
             'docker', 'inspect', 'federaide-sandbox'
         ]).then(() => true).catch(() => false);
+
+        // Auto-recreate container if it still has the legacy .federate mount
+        if (containerExists) {
+            const hasNewMount = await runLimactlAsync([
+                'shell', 'federaide',
+                'docker', 'inspect', 'federaide-sandbox', '--format', '{{json .Mounts}}'
+            ]).then(m => m.includes('.federaide')).catch(() => false);
+
+            if (!hasNewMount) {
+                await runLimactlAsync(['shell', 'federaide', 'docker', 'rm', '-f', 'federaide-sandbox']).catch(() => {});
+                containerExists = false;
+            }
+        }
 
         const guestWs = toGuestPath(ws);
         const guestConfigDir = toGuestPath(configDir);
@@ -429,9 +441,9 @@ function createWindow() {
                 '-e', 'QT_XCB_GL_INTEGRATION=none',
                 '-v', `${guestWs}:/home/federate/FederateWorkspace`,
                 '-v', `${guestWs}:/workspace`,
-                '-v', `${guestConfigDir}:/home/federate/.federate`,
+                '-v', `${guestConfigDir}:/home/federate/.federaide`,
                 'federaide:debian',
-                'python3', '-u', '/home/federate/.federate/electron_bridge.py'
+                'python3', '-u', '/home/federate/.federaide/electron_bridge.py'
             ], {
                 env: { ...process.env, PYTHONUNBUFFERED: "1" }
             });

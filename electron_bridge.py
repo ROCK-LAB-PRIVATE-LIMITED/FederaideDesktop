@@ -535,19 +535,6 @@ class HeadlessAgentView:
             settings["registered_teams"] = registered
             toolbox.save_global_settings(settings)
 
-        edit_path = os.path.abspath(os.path.expanduser(target_path)) if target_path else active_path
-        remote_url, git_user, git_pat = toolbox.get_team_git_credentials(edit_path)
-
-        teams_list = []
-        for t in registered:
-            p = os.path.abspath(os.path.expanduser(t.get("path", "")))
-            r_url, _, _ = toolbox.get_team_git_credentials(p)
-            teams_list.append({
-                "name": t.get("name") or os.path.basename(p).lstrip("."),
-                "path": p,
-                "is_active": (p == active_path),
-                "remote_url": r_url
-            })
 
         edit_path = os.path.abspath(os.path.expanduser(target_path)) if target_path else active_path
         remote_url, git_user, git_pat = toolbox.get_team_git_credentials(edit_path)
@@ -1585,7 +1572,7 @@ def handle_client_message(view, data):
         if not target_path.startswith(view.workspace_dir) or not os.path.exists(target_path):
             return
             
-        cache_dir = os.path.join(os.path.expanduser("~"), ".federate", "cache")
+        cache_dir = os.path.join(os.path.expanduser("~"), ".federaide", "cache")
         os.makedirs(cache_dir, exist_ok=True)
 
         if is_folder:

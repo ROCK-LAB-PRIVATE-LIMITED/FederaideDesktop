@@ -31,7 +31,7 @@ portForwards:
   - guestPort: 6081
     hostPort: 6081
 mounts:
-  - location: "{{.Home}}/.federate"
+  - location: "{{.Home}}/.federaide"
     writable: true
   - location: "{{.Home}}/FederateWorkspace"
     writable: true
