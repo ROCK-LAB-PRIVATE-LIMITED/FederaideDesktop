@@ -13,6 +13,71 @@ try {
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const http = require('http');
+
+let oauthServer = null;
+
+function startHostOAuthServer(authUrl) {
+    if (oauthServer) {
+        try { oauthServer.close(); } catch (_) {}
+        oauthServer = null;
+    }
+
+    oauthServer = http.createServer((req, res) => {
+        try {
+            const reqUrl = new URL(req.url, 'http://127.0.0.1:1455');
+            if (reqUrl.pathname === '/auth/callback') {
+                const code = reqUrl.searchParams.get('code');
+                const state = reqUrl.searchParams.get('state');
+                const error = reqUrl.searchParams.get('error') || reqUrl.searchParams.get('error_description');
+
+                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                if (error) {
+                    res.end(`<!doctype html><html><body style="font-family:sans-serif;text-align:center;padding:50px;"><h2>Sign-in failed</h2><p>${error}</p></body></html>`);
+                } else {
+                    res.end(`<!doctype html><html><body style="font-family:sans-serif;text-align:center;padding:50px;"><h2 style="color:#137333;">ChatGPT sign-in complete!</h2><p>You can close this tab and return to FEDERaiDE.</p></body></html>`);
+                }
+
+                if (pythonProcess && pythonProcess.stdin && !pythonProcess.killed) {
+                    pythonProcess.stdin.write(JSON.stringify({
+                        action: 'chatgpt_oauth_callback',
+                        code: code,
+                        state: state,
+                        error: error
+                    }) + '\n');
+                }
+
+                setTimeout(() => {
+                    if (oauthServer) {
+                        try { oauthServer.close(); } catch (_) {}
+                        oauthServer = null;
+                    }
+                }, 1000);
+            } else {
+                res.writeHead(404);
+                res.end();
+            }
+        } catch (e) {
+            res.writeHead(500);
+            res.end();
+        }
+    });
+
+    oauthServer.on('error', (err) => {
+        console.error('[Host OAuth Server Error]:', err);
+        if (pythonProcess && pythonProcess.stdin && !pythonProcess.killed) {
+            pythonProcess.stdin.write(JSON.stringify({
+                action: 'chatgpt_oauth_callback',
+                error: `Could not bind host port 1455: ${err.message}`
+            }) + '\n');
+        }
+    });
+
+    // Bound strictly to 127.0.0.1 on the host machine only
+    oauthServer.listen(1455, '127.0.0.1', () => {
+        shell.openExternal(authUrl);
+    });
+}
 
 function runLimactlAsync(args) {
     const limactl = getLimactlPath();
@@ -495,6 +560,10 @@ function createWindow() {
                             app.quit();
                             return;
                         }
+                        if (msg.type === "start_chatgpt_oauth") {
+                            startHostOAuthServer(msg.url);
+                            return;
+                        }
                         if (msg.type === "open_novnc") {
                             openNoVncWindow(msg.url || 'http://127.0.0.1:6080/vnc.html?autoconnect=true&resize=remote');
                             return;
@@ -560,6 +629,10 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
+    if (oauthServer) {
+        try { oauthServer.close(); } catch (_) {}
+        oauthServer = null;
+    }
     if (pythonProcess && !pythonProcess.killed) {
         pythonProcess.kill();
     }

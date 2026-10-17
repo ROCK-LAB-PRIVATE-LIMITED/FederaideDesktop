@@ -235,6 +235,7 @@ class HeadlessAgentView:
         self.tool_confirmation_results = {}
         self.is_authenticated = True
         self.session_token = "ELECTRON_IPC_ACTIVE"
+        self._pending_oauth = None
 
     def query_one(self, selector, *args, **kwargs):
         return self.app.query_one(selector, *args, **kwargs)
@@ -960,14 +961,16 @@ class HeadlessAgentView:
 
     def run_chatgpt_oauth(self):
         try:
-            import chatgpt_auth, base64, hashlib, urllib.parse, http.server
+            import chatgpt_auth, base64, hashlib, urllib.parse
             self.log_to_ui("[dim cyan]Opening browser for ChatGPT OAuth sign-in...[/dim cyan]")
             self.send_to_electron({"type": "chatgpt_oauth_status", "status": "waiting", "message": "Opening browser for sign-in..."})
+
             host, port, callback_path = chatgpt_auth.DEFAULT_REDIRECT_HOST, chatgpt_auth.DEFAULT_REDIRECT_PORT, chatgpt_auth.DEFAULT_REDIRECT_PATH
             redirect_uri = f"http://{host}:{port}{callback_path}"
             state = secrets.token_urlsafe(32)
             verifier = base64.urlsafe_b64encode(secrets.token_bytes(64)).rstrip(b"=").decode("ascii")
             challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("ascii")).digest()).rstrip(b"=").decode("ascii")
+
             params = {
                 "client_id": chatgpt_auth.CHATGPT_CLIENT_ID,
                 "response_type": "code",
@@ -979,41 +982,15 @@ class HeadlessAgentView:
                 "prompt": "consent"
             }
             authorize_url = f"{chatgpt_auth.CHATGPT_AUTHORIZE_URL}?{urllib.parse.urlencode(params)}"
-            class Handler(chatgpt_auth._CallbackHandler):
-                server_result = {}
-                callback_path = chatgpt_auth.DEFAULT_REDIRECT_PATH
-            Handler.authorize_url = authorize_url
-            try:
-                server = http.server.HTTPServer((host, port), Handler)
-                server.timeout = 1.0
-            except Exception:
-                self.log_to_ui("[bold red]Port 1455 occupied. Could not start OAuth callback server.[/bold red]")
-                self.send_to_electron({"type": "chatgpt_oauth_status", "status": "failed", "message": "Port 1455 occupied. Could not start callback server."})
-                return
-            self.send_to_electron({"type": "open_external_url", "url": authorize_url})
-            deadline = time.monotonic() + 300.0
-            result = {}
-            while time.monotonic() < deadline:
-                server.handle_request()
-                if Handler.server_result.get("code") or Handler.server_result.get("error"):
-                    result = dict(Handler.server_result)
-                    break
-            server.server_close()
-            code = result.get("code")
-            if code:
-                import httpx
-                tok_resp = httpx.post(chatgpt_auth.CHATGPT_TOKEN_URL, data={"grant_type": "authorization_code", "code": code, "redirect_uri": redirect_uri, "client_id": chatgpt_auth.CHATGPT_CLIENT_ID, "code_verifier": verifier}, headers={"Accept": "application/json", "User-Agent": chatgpt_auth.HTTP_HEADERS["User-Agent"]}, timeout=30.0)
-                tok_resp.raise_for_status()
-                token = chatgpt_auth._token_from_response(tok_resp.json())
-                provider = chatgpt_auth._FileChatGPTOAuthTokenProvider()
-                provider.save(token)
-                plan = (token.plan_type or "Active").title()
-                self.log_to_ui(f"[bold green]ChatGPT Subscription ({plan}) authorized successfully! Token saved.[/bold green]")
-                self.send_to_electron({"type": "chatgpt_oauth_status", "status": "success", "message": f"Connected ({plan})!"})
-            else:
-                err = result.get("error_description") or result.get("error") or "Timed out or cancelled."
-                self.log_to_ui(f"[bold red]ChatGPT OAuth failed:[/bold red] {err}")
-                self.send_to_electron({"type": "chatgpt_oauth_status", "status": "failed", "message": str(err)})
+
+            self._pending_oauth = {
+                "state": state,
+                "verifier": verifier,
+                "redirect_uri": redirect_uri
+            }
+
+            # Instruct Electron on the host to open a 127.0.0.1:1455 listener and open the browser
+            self.send_to_electron({"type": "start_chatgpt_oauth", "url": authorize_url})
         except Exception as e:
             self.log_to_ui(f"[bold red]ChatGPT OAuth error:[/bold red] {e}")
             self.send_to_electron({"type": "chatgpt_oauth_status", "status": "failed", "message": str(e)})
@@ -1534,6 +1511,56 @@ def handle_client_message(view, data):
         view.save_global_settings(data.get("settings"))
     elif action == "start_chatgpt_oauth":
         threading.Thread(target=view.run_chatgpt_oauth, daemon=True).start()
+    elif action == "chatgpt_oauth_callback":
+        pending = getattr(view, "_pending_oauth", None)
+        if not pending:
+            return
+
+        error = data.get("error")
+        code = data.get("code")
+        state = data.get("state")
+
+        if error:
+            view.log_to_ui(f"[bold red]ChatGPT OAuth failed:[/bold red] {error}")
+            view.send_to_electron({"type": "chatgpt_oauth_status", "status": "failed", "message": str(error)})
+            view._pending_oauth = None
+            return
+
+        if state != pending.get("state"):
+            view.log_to_ui("[bold red]ChatGPT OAuth failed: CSRF State mismatch.[/bold red]")
+            view.send_to_electron({"type": "chatgpt_oauth_status", "status": "failed", "message": "State mismatch"})
+            view._pending_oauth = None
+            return
+
+        def _exchange():
+            try:
+                import httpx, chatgpt_auth
+                tok_resp = httpx.post(
+                    chatgpt_auth.CHATGPT_TOKEN_URL,
+                    data={
+                        "grant_type": "authorization_code",
+                        "code": code,
+                        "redirect_uri": pending["redirect_uri"],
+                        "client_id": chatgpt_auth.CHATGPT_CLIENT_ID,
+                        "code_verifier": pending["verifier"]
+                    },
+                    headers={"Accept": "application/json", "User-Agent": chatgpt_auth.HTTP_HEADERS["User-Agent"]},
+                    timeout=30.0
+                )
+                tok_resp.raise_for_status()
+                token = chatgpt_auth._token_from_response(tok_resp.json())
+                provider = chatgpt_auth._FileChatGPTOAuthTokenProvider()
+                provider.save(token)
+                plan = (token.plan_type or "Active").title()
+                view.log_to_ui(f"[bold green]ChatGPT Subscription ({plan}) authorized successfully! Token saved.[/bold green]")
+                view.send_to_electron({"type": "chatgpt_oauth_status", "status": "success", "message": f"Connected ({plan})!"})
+            except Exception as e:
+                view.log_to_ui(f"[bold red]ChatGPT OAuth token exchange failed:[/bold red] {e}")
+                view.send_to_electron({"type": "chatgpt_oauth_status", "status": "failed", "message": str(e)})
+            finally:
+                view._pending_oauth = None
+
+        threading.Thread(target=_exchange, daemon=True).start()
     elif action == "get_sessions":
         view.get_sessions_list()
     elif action == "get_schedules":
