@@ -886,13 +886,21 @@ class HeadlessAgentView:
 
             try:
                 import keyring
-                safe_key_name = name.lower().replace(" ", "_")
+                primary_user = toolbox.get_agent_keyring_user(name, is_backup=False)
+                backup_user = toolbox.get_agent_keyring_user(name, is_backup=True)
+                team_tag = re.sub(r'[^a-zA-Z0-9_]', '_', os.path.basename(toolbox.get_team_dir())).upper().lstrip("_") or "DEFAULT"
                 if api_key:
-                    keyring.set_password("Federate", f"agent_key_{safe_key_name}", api_key)
-                    os.environ[f"AGENT_KEY_{name.upper().replace(' ', '_')}"] = api_key
+                    keyring.set_password("Federate", primary_user, api_key)
+                    os.environ[f"AGENT_KEY_{team_tag}_{name.upper().replace(' ', '_')}"] = api_key
+                else:
+                    try: keyring.delete_password("Federate", primary_user)
+                    except Exception: pass
                 if backup_key:
-                    keyring.set_password("Federate", f"agent_backup_key_{safe_key_name}", backup_key)
-                    os.environ[f"AGENT_BACKUP_KEY_{name.upper().replace(' ', '_')}"] = backup_key
+                    keyring.set_password("Federate", backup_user, backup_key)
+                    os.environ[f"AGENT_BACKUP_KEY_{team_tag}_{name.upper().replace(' ', '_')}"] = backup_key
+                else:
+                    try: keyring.delete_password("Federate", backup_user)
+                    except Exception: pass
             except Exception:
                 pass
 
@@ -948,6 +956,12 @@ class HeadlessAgentView:
             self.log_to_ui("[bold red]Cannot delete the only remaining agent.[/bold red]")
             return
         self.agent_manager.delete_agent(name)
+        try:
+            import keyring
+            keyring.delete_password("Federate", toolbox.get_agent_keyring_user(name, is_backup=False))
+            keyring.delete_password("Federate", toolbox.get_agent_keyring_user(name, is_backup=True))
+        except Exception:
+            pass
         next_name = list(self.agent_manager.agents.keys())[0]
         self.select_agent(next_name)
         self.send_to_electron({
