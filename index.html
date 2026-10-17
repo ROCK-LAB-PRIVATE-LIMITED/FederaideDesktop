@@ -385,7 +385,7 @@
         .model-selector-pill:hover { background: var(--bg-card); border-color: var(--border-focus); }
         .model-selector-pill .agent-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-teal); }
 
-        #header-agent-dropdown {
+        #header-agent-dropdown, #team-dropdown {
             display: none;
             position: absolute;
             top: auto;
@@ -403,7 +403,7 @@
             flex-direction: column;
             gap: 6px;
         }
-        #header-agent-dropdown.open { display: flex; }
+        #header-agent-dropdown.open, #team-dropdown.open { display: flex; }
         .dropdown-search-input {
             width: 100%;
             background: var(--bg-card);
@@ -1453,6 +1453,22 @@
                     </div>
 
                     <div class="input-controls-right">
+                        <!-- Team Switcher Pill & Dropdown -->
+                        <div style="position: relative;">
+                            <div class="model-selector-pill" id="btn-team-pill" title="Switch Team Workspace (F1)">
+                                <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor; flex-shrink: 0;"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                                <span id="active-team-name">Default</span>
+                                <span style="font-size: 0.75rem; color: var(--text-dim);">▾</span>
+                            </div>
+
+                            <div id="team-dropdown">
+                                <input type="text" id="team-dropdown-search" class="dropdown-search-input" placeholder="Search teams...">
+                                <div id="dropdown-teams-list" class="dropdown-agents-list"></div>
+                                <button class="modal-btn btn-secondary" id="btn-dropdown-manage-teams" style="width: 100%; margin-top: 4px; padding: 6px 10px; font-size: 0.78rem;">Manage Teams</button>
+                            </div>
+                        </div>
+
+                        <!-- Agent Switcher Pill & Dropdown -->
                         <div style="position: relative;">
                             <div class="model-selector-pill" id="btn-header-agent-pill" title="Select agent (Ctrl+G to cycle)">
                                 <span class="agent-dot" id="header-agent-dot"></span>

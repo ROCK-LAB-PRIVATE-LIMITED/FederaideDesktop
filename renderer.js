@@ -395,6 +395,8 @@ function stripRichTags(text) {
 function closeModals() {
     document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
     headerAgentDropdown.classList.remove('open');
+    const teamDropdown = document.getElementById('team-dropdown');
+    if (teamDropdown) teamDropdown.classList.remove('open');
     if (typeof resetScheduleForm === 'function') resetScheduleForm();
     chatInput.focus();
 }
@@ -609,6 +611,10 @@ document.addEventListener('click', (e) => {
 
     if (!e.target.closest('#btn-header-agent-pill') && !e.target.closest('#header-agent-dropdown')) {
         headerAgentDropdown.classList.remove('open');
+    }
+    if (!e.target.closest('#btn-team-pill') && !e.target.closest('#team-dropdown')) {
+        const teamDd = document.getElementById('team-dropdown');
+        if (teamDd) teamDd.classList.remove('open');
     }
     const link = e.target.closest('a');
     if (link && link.href) {
@@ -1007,6 +1013,7 @@ window.electronAPI.onPythonMessage((msg) => {
                     showOnboardingModal();
                 }
                 sendToPython({ action: "get_sessions" });
+                sendToPython({ action: "get_teams" });
                 break;
 
             case "keyring_unlock_required":
@@ -2428,9 +2435,83 @@ function syncColorPicker(pickerId, textId, defaultColor = "#3ddbd9") {
 
 
 // --- TEAMS CONTROLLER & GIT SYNC ENGINE ---
+let cachedTeams = [];
 let editingTeamPath = null;
 let pendingConflictPath = null;
 let pendingDeleteTeam = null;
+
+function renderTeamDropdown(filter = "") {
+    const listEl = document.getElementById('dropdown-teams-list');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    const q = filter.toLowerCase().trim();
+    const filtered = (cachedTeams || []).filter(t => (t.name || '').toLowerCase().includes(q) || (t.path || '').toLowerCase().includes(q));
+
+    if (filtered.length === 0) {
+        listEl.innerHTML = '<div style="color:var(--text-dim); font-size:0.8rem; padding:8px; text-align:center;">No teams found</div>';
+        return;
+    }
+
+    filtered.forEach(t => {
+        const isActive = !!t.is_active;
+        const item = document.createElement('div');
+        item.className = 'dropdown-agent-item ' + (isActive ? 'active' : '');
+        item.innerHTML = `
+            <div style="display:flex; align-items:center; gap:8px; overflow:hidden; min-width:0;">
+                <span style="font-size:0.85rem; flex-shrink:0;">📁</span>
+                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    <div style="font-weight:${isActive ? '700' : '500'}; color:${isActive ? 'var(--brand-teal)' : 'var(--text-main)'}; font-size:0.82rem; text-overflow:ellipsis; overflow:hidden;">${window.electronAPI.escapeHtml(t.name)}</div>
+                    <div style="font-size:0.68rem; color:var(--text-dim); text-overflow:ellipsis; overflow:hidden;">${window.electronAPI.escapeHtml(t.path)}</div>
+                </div>
+            </div>
+            ${isActive ? '<span style="font-size:0.75rem; color:var(--brand-teal); font-weight:bold; flex-shrink:0; margin-left:6px;">✓</span>' : ''}
+        `;
+
+        item.onclick = (e) => {
+            e.stopPropagation();
+            if (!isActive) {
+                sendToPython({ action: "switch_team", path: t.path, name: t.name });
+            }
+            const teamDd = document.getElementById('team-dropdown');
+            if (teamDd) teamDd.classList.remove('open');
+        };
+
+        listEl.appendChild(item);
+    });
+}
+
+const btnTeamPill = document.getElementById('btn-team-pill');
+if (btnTeamPill) {
+    btnTeamPill.onclick = (e) => {
+        e.stopPropagation();
+        headerAgentDropdown.classList.remove('open');
+        const teamDd = document.getElementById('team-dropdown');
+        if (teamDd) {
+            teamDd.classList.toggle('open');
+            if (teamDd.classList.contains('open')) {
+                sendToPython({ action: "get_teams" });
+                const searchInput = document.getElementById('team-dropdown-search');
+                renderTeamDropdown(searchInput ? searchInput.value : "");
+                if (searchInput) searchInput.focus();
+            }
+        }
+    };
+}
+
+const teamSearchInput = document.getElementById('team-dropdown-search');
+if (teamSearchInput) {
+    teamSearchInput.addEventListener('input', (e) => renderTeamDropdown(e.target.value));
+}
+
+const btnManageTeamsDropdown = document.getElementById('btn-dropdown-manage-teams');
+if (btnManageTeamsDropdown) {
+    btnManageTeamsDropdown.onclick = (e) => {
+        e.stopPropagation();
+        const teamDd = document.getElementById('team-dropdown');
+        if (teamDd) teamDd.classList.remove('open');
+        openTeamsModal();
+    };
+}
 
 function openTeamsModal(targetPath = null) {
     sendToPython({ action: "get_teams", path: targetPath });
@@ -2442,14 +2523,22 @@ function renderTeamsUI(data) {
     if (!listEl) return;
     listEl.innerHTML = '';
 
+    cachedTeams = data.teams || [];
     const edit = data.editing_team || {};
     editingTeamPath = edit.path || null;
 
-    const activeTeam = (data.teams || []).find(t => t.is_active) || (data.teams && data.teams[0]) || { name: 'Default' };
+    const activeTeam = cachedTeams.find(t => t.is_active) || cachedTeams[0] || { name: 'Default' };
+    const activeTeamLabel = document.getElementById('active-team-name');
+    if (activeTeamLabel) {
+        activeTeamLabel.innerText = activeTeam.name;
+    }
     const headerPill = document.getElementById('active-team-header-pill');
     if (headerPill) {
         headerPill.innerText = activeTeam.name;
     }
+
+    const searchInput = document.getElementById('team-dropdown-search');
+    renderTeamDropdown(searchInput ? searchInput.value : "");
 
     const titleEl = document.getElementById('team-form-title');
     if (titleEl) {
@@ -3120,5 +3209,6 @@ document.addEventListener('DOMContentLoaded', () => {
         sendToPython({ action: "get_global_settings" });
         sendToPython({ action: "get_agent_data" });
         sendToPython({ action: "get_sessions" });
+        sendToPython({ action: "get_teams" });
     }, 100);
 });
